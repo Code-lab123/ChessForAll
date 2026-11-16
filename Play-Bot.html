@@ -713,9 +713,9 @@ saveState();
     if (window.pendingPromo) {
         window.pendingPromo = null;
         document.getElementById('promoModal').style.display = 'none';
-        var currentSnap = JSON.parse(boardHistory.at(-1));
-        bd = currentSnap.bd ? currentSnap.bd : currentSnap;
-        epSquare = currentSnap.epSquare || null;
+        var curSnap = JSON.parse(boardHistory.at(-1));
+        bd = Array.isArray(curSnap) ? curSnap : curSnap.bd;
+        epSquare = curSnap.epSquare || null;
         sel = null;
         moves = [];
         turn = playerColor;
@@ -731,7 +731,7 @@ saveState();
     boardHistory.pop();
 
     var prev = JSON.parse(boardHistory.at(-1));
-    bd = prev.bd ? prev.bd : prev;
+    bd = Array.isArray(prev) ? prev : prev.bd;
     epSquare = prev.epSquare || null;
 
     hasMoved = {
@@ -741,7 +741,7 @@ saveState();
 
     for (var i = 0; i < boardHistory.length; i++) {
         var entry = JSON.parse(boardHistory.at(i));
-        var hBoard = entry.bd ? entry.bd : entry;
+        var hBoard = Array.isArray(entry) ? entry : entry.bd;
         if (hBoard.at(7).at(4) !== 'K') hasMoved['W_K'] = true;
         if (hBoard.at(7).at(0) !== 'R') hasMoved['W_R1'] = true;
         if (hBoard.at(7).at(7) !== 'R') hasMoved['W_R8'] = true;
