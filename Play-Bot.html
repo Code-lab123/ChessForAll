@@ -397,7 +397,8 @@ saveState();
                 function bot() {
     var allEvaluatedMoves = [];
     var diffSetting = document.getElementById('diff').value;
-    var searchDepth = diffSetting === "1600" ? 4 : (diffSetting === "1200" ? 3 : 2);
+   var searchDepth = diffSetting === "1600" ? 5 : (diffSetting === "1200" ? 3 : 2);
+
     var botColor = document.getElementById('pColor').value === 'W' ? 'B' : 'W';
     var zero = 0, two = 2, three = 3, five = 5, six = 6, seven = 7;
 
@@ -705,18 +706,16 @@ saveState();
     return false;
 }
 
-    function undo() {
+   function undo() {
     var playerColor = document.getElementById('pColor').value;
     var minHistory = playerColor === 'W' ? 3 : 4;
 
-    // If the promotion modal is currently open, the player's move hasn't been saved yet
     if (window.pendingPromo) {
         window.pendingPromo = null;
         document.getElementById('promoModal').style.display = 'none';
-        var currentSnap = JSON.parse(boardHistory[boardHistory.length - 1]);
-        bd = currentSnap.bd;
-        hasMoved = currentSnap.hasMoved;
-        epSquare = currentSnap.epSquare;
+        var currentSnap = JSON.parse(boardHistory.at(-1));
+        bd = currentSnap.bd ? currentSnap.bd : currentSnap;
+        epSquare = currentSnap.epSquare || null;
         sel = null;
         moves = [];
         turn = playerColor;
@@ -728,27 +727,27 @@ saveState();
     if (boardHistory.length < minHistory) return;
     if (turn !== playerColor && turn !== 'E') return;
 
-    // Pop the bot's move and the player's move
     boardHistory.pop();
     boardHistory.pop();
 
-    var prev = JSON.parse(boardHistory[boardHistory.length - 1]);
-    bd = prev.bd;
-    epSquare = prev.epSquare;
+    var prev = JSON.parse(boardHistory.at(-1));
+    bd = prev.bd ? prev.bd : prev;
+    epSquare = prev.epSquare || null;
 
-    // Recalculate castling rights cleanly by scanning the remaining history
     hasMoved = {
         'W_K': false, 'W_R1': false, 'W_R8': false,
         'B_K': false, 'B_R1': false, 'B_R8': false
     };
+
     for (var i = 0; i < boardHistory.length; i++) {
-        var hBoard = JSON.parse(boardHistory[i]).bd;
-        if (hBoard[7][4] !== 'K') hasMoved['W_K'] = true;
-        if (hBoard[7][0] !== 'R') hasMoved['W_R1'] = true;
-        if (hBoard[7][7] !== 'R') hasMoved['W_R8'] = true;
-        if (hBoard[0][4] !== 'k') hasMoved['B_K'] = true;
-        if (hBoard[0][0] !== 'r') hasMoved['B_R1'] = true;
-        if (hBoard[0][7] !== 'r') hasMoved['B_R8'] = true;
+        var entry = JSON.parse(boardHistory.at(i));
+        var hBoard = entry.bd ? entry.bd : entry;
+        if (hBoard.at(7).at(4) !== 'K') hasMoved['W_K'] = true;
+        if (hBoard.at(7).at(0) !== 'R') hasMoved['W_R1'] = true;
+        if (hBoard.at(7).at(7) !== 'R') hasMoved['W_R8'] = true;
+        if (hBoard.at(0).at(4) !== 'k') hasMoved['B_K'] = true;
+        if (hBoard.at(0).at(0) !== 'r') hasMoved['B_R1'] = true;
+        if (hBoard.at(0).at(7) !== 'r') hasMoved['B_R8'] = true;
     }
 
     sel = null;
@@ -758,6 +757,7 @@ saveState();
     endState(playerColor);
     draw();
 }
+
 
 
     function rst() { 
