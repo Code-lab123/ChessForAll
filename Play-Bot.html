@@ -212,14 +212,27 @@ saveState();
 
        function getLegal(r, c, b, inSim) {
     var pseudo = getPseudo(r, c, b, false, inSim), cl = getColor(b[r][c]), legal = [];
+    var origPiece = b[r][c];
     for (var i = 0; i < pseudo.length; i++) {
-        var m = pseudo[i], tmp = JSON.parse(JSON.stringify(b));
+        var m = pseudo[i];
+        var captured = b[m.r][m.c];
+        var epCaptured = '';
+
         if (m.isENPassant) {
-            tmp[r][m.c] = '';
+            epCaptured = b[r][m.c];
+            b[r][m.c] = '';
         }
-        tmp[m.r][m.c] = tmp[r][c];
-        tmp[r][c] = '';
-        if (!check(cl, tmp)) legal.push(m);
+        b[m.r][m.c] = origPiece;
+        b[r][c] = '';
+
+        if (!check(cl, b)) legal.push(m);
+
+        // Undo move in-place (zero memory allocation)
+        b[r][c] = origPiece;
+        b[m.r][m.c] = captured;
+        if (m.isENPassant) {
+            b[r][m.c] = epCaptured;
+        }
     }
     return legal;
 }
@@ -399,127 +412,123 @@ saveState();
         [-3, -2, -2, -2, -2, -2, -2, -3]
     ];
 
-    function stringToBoard(str) {
-        var b = [];
-        for (var r = 0; r < 8; r++) {
-            var row = [];
-            for (var c = 0; c < 8; c++) {
-                var ch = str.charAt(r * 8 + c);
-                row.push(ch === '-' ? '' : ch);
-            }
-            b.push(row);
-        }
-        return b;
-    }
+    // Clone the board once for the entire search tree
+    var simBoard = JSON.parse(JSON.stringify(bd));
 
-    function boardToString(b) {
-        var str = "";
-        for (var r = 0; r < 8; r++) {
-            for (var c = 0; c < 8; c++) {
-                str += b[r][c] === '' ? '-' : b[r][c];
-            }
-        }
-        return str;
-    }
-
-    function applyMoveToStr(boardStr, m) {
-        var fromIdx = m.from.r * 8 + m.from.c;
-        var toIdx = m.to.r * 8 + m.to.c;
-        var piece = boardStr.charAt(fromIdx);
-        if (m.to.r === 7 && piece === 'p') piece = 'q';
-        if (m.to.r === 0 && piece === 'P') piece = 'Q';
-
-        var nextStr = boardStr.substring(0, toIdx) + piece + boardStr.substring(toIdx + 1);
-        nextStr = nextStr.substring(0, fromIdx) + '-' + nextStr.substring(fromIdx + 1);
-
-        if (m.to.isCastle) {
-            var rBase = m.to.r * 8;
-            if (m.to.c === six) {
-                nextStr = nextStr.substring(0, rBase + five) + boardStr.charAt(rBase + seven) + nextStr.substring(rBase + six);
-                nextStr = nextStr.substring(0, rBase + seven) + '-' + nextStr.substring(rBase + 8);
-            }
-            if (m.to.c === two) {
-                nextStr = nextStr.substring(0, rBase + three) + boardStr.charAt(rBase + zero) + nextStr.substring(rBase + 4);
-                nextStr = nextStr.substring(0, rBase + zero) + '-' + nextStr.substring(rBase + 1);
-            }
-        }
-        if (m.to.isENPassant) {
-            var epIdx = m.from.r * 8 + m.to.c;
-            nextStr = nextStr.substring(0, epIdx) + '-' + nextStr.substring(epIdx + 1);
-        }
-        return nextStr;
-    }
-
-    function evalState(str) {
+    function evalBoard(b) {
         var score = 0;
-        for (var i = 0; i < 64; i++) {
-            var p = str.charAt(i);
-            if (p !== '-') {
-                var r = Math.floor(i / 8), c = i % 8;
-                var type = p.toLowerCase();
-                var val = (vals[type] || 0) * 10;
+        for (var r = 0; r < 8; r++) {
+            var row = b[r];
+            for (var c = 0; c < 8; c++) {
+                var p = row[c];
+                if (p !== '') {
+                    var type = p.toLowerCase();
+                    var val = (vals[type] || 0) * 10;
 
-                if (type === 'p' && pTable[r] && pTable[r][c]) val += pTable[r][c];
-                if (type === 'n' && nTable[r] && nTable[r][c]) val += nTable[r][c];
+                    if (type === 'p') val += pTable[r][c];
+                    else if (type === 'n') val += nTable[r][c];
 
-                if (type === 'p' || type === 'n' || type === 'b') {
-                    val += centerTable[r][c] * 8;
-                }
-
-                if (type === 'q') {
-                    if (p === 'Q' && r !== seven) val -= 150;
-                    if (p === 'q' && r !== zero) val -= 150;
-                }
-
-                if (type === 'k') {
-                    var isBlackPiece = (p === p.toLowerCase());
-                    if (isBlackPiece) {
-                        if (r === zero && (c === 6 || c === 2 || c === 1 || c === 7)) val += 40;
-                        else if (r === zero && c === 4) val += 10;
-                        else val -= 30;
-                    } else {
-                        if (r === seven && (c === 6 || c === 2 || c === 1 || c === 7)) val += 40;
-                        else if (r === seven && c === 4) val += 10;
-                        else val -= 30;
+                    if (type === 'p' || type === 'n' || type === 'b') {
+                        val += centerTable[r][c] * 8;
+                    } else if (type === 'q') {
+                        if (p === 'Q' && r !== seven) val -= 150;
+                        if (p === 'q' && r !== zero) val -= 150;
+                    } else if (type === 'k') {
+                        var isBlackPiece = (p === 'k');
+                        if (isBlackPiece) {
+                            if (r === zero && (c === 6 || c === 2 || c === 1 || c === 7)) val += 40;
+                            else if (r === zero && c === 4) val += 10;
+                            else val -= 30;
+                        } else {
+                            if (r === seven && (c === 6 || c === 2 || c === 1 || c === 7)) val += 40;
+                            else if (r === seven && c === 4) val += 10;
+                            else val -= 30;
+                        }
                     }
-                }
 
-                if (p === p.toLowerCase()) {
-                    score += val;
-                } else {
-                    score -= val;
+                    if (p === type) score += val;
+                    else score -= val;
                 }
             }
         }
         return score;
     }
 
-    function getMoves(cl, str, inSim) {
+    function getMoves(cl, b, inSim) {
         var list = [];
-        var b = stringToBoard(str);
         for (var r = 0; r < 8; r++) {
             for (var c = 0; c < 8; c++) {
-                if (b[r][c] && getColor(b[r][c]) === cl) {
+                var piece = b[r][c];
+                if (piece !== '' && getColor(piece) === cl) {
                     var leg = getLegal(r, c, b, inSim);
                     for (var i = 0; i < leg.length; i++) {
-                        list.push({ from: { r: r, c: c }, to: leg[i] });
+                        var to = leg[i];
+                        var target = b[to.r][to.c];
+                        // MVV-LVA score for superior alpha-beta pruning
+                        var mvvScore = target !== '' ? (vals[target.toLowerCase()] * 10 - vals[piece.toLowerCase()]) : 0;
+                        list.push({ from: { r: r, c: c }, to: to, order: mvvScore });
                     }
                 }
             }
         }
         return list.sort(function(a, b) {
-            var targetA = str.charAt(a.to.r * 8 + a.to.c) !== '-' ? 1 : 0;
-            var targetB = str.charAt(b.to.r * 8 + b.to.c) !== '-' ? 1 : 0;
-            return targetB - targetA;
+            return b.order - a.order;
         });
     }
 
-    function minimax(boardStr, depth, alpha, beta, isMax) {
-        if (depth === 0) return evalState(boardStr);
+    function makeSimMove(b, m) {
+        var fr = m.from.r, fc = m.from.c, tr = m.to.r, tc = m.to.c;
+        var origPiece = b[fr][fc];
+        var captured = b[tr][tc];
+        var epCaptured = '';
+
+        var placedPiece = origPiece;
+        if (tr === 7 && origPiece === 'p') placedPiece = 'q';
+        if (tr === 0 && origPiece === 'P') placedPiece = 'Q';
+
+        b[tr][tc] = placedPiece;
+        b[fr][fc] = '';
+
+        if (m.to.isENPassant) {
+            epCaptured = b[fr][tc];
+            b[fr][tc] = '';
+        }
+        if (m.to.isCastle) {
+            if (tc === six) {
+                b[tr].splice(five, 1, b[tr][seven]);
+                b[tr].splice(seven, 1, '');
+            } else if (tc === two) {
+                b[tr].splice(three, 1, b[tr][zero]);
+                b[tr].splice(zero, 1, '');
+            }
+        }
+        return { origPiece: origPiece, captured: captured, epCaptured: epCaptured };
+    }
+
+    function unmakeSimMove(b, m, undoData) {
+        var fr = m.from.r, fc = m.from.c, tr = m.to.r, tc = m.to.c;
+        b[fr][fc] = undoData.origPiece;
+        b[tr][tc] = undoData.captured;
+
+        if (m.to.isENPassant) {
+            b[fr][tc] = undoData.epCaptured;
+        }
+        if (m.to.isCastle) {
+            if (tc === six) {
+                b[tr].splice(seven, 1, b[tr][five]);
+                b[tr].splice(five, 1, '');
+            } else if (tc === two) {
+                b[tr].splice(zero, 1, b[tr][three]);
+                b[tr].splice(three, 1, '');
+            }
+        }
+    }
+
+    function minimax(b, depth, alpha, beta, isMax) {
+        if (depth === 0) return evalBoard(b);
         var activeColor = isMax ? 'B' : 'W';
-        var movesList = getMoves(activeColor, boardStr, true);
+        var movesList = getMoves(activeColor, b, true);
         if (movesList.length === 0) {
-            var b = stringToBoard(boardStr);
             if (check(activeColor, b)) return isMax ? -99999 + depth : 99999 - depth;
             return 0;
         }
@@ -527,34 +536,36 @@ saveState();
         if (isMax) {
             var maxVal = -Infinity;
             for (var i = 0; i < movesList.length; i++) {
-                var nextStr = applyMoveToStr(boardStr, movesList[i]);
-                var score = minimax(nextStr, depth - 1, alpha, beta, false);
-                maxVal = Math.max(maxVal, score);
-                alpha = Math.max(alpha, score);
+                var uData = makeSimMove(b, movesList[i]);
+                var score = minimax(b, depth - 1, alpha, beta, false);
+                unmakeSimMove(b, movesList[i], uData);
+                if (score > maxVal) maxVal = score;
+                if (score > alpha) alpha = score;
                 if (beta <= alpha) break;
             }
             return maxVal;
         } else {
             var minVal = Infinity;
             for (var i = 0; i < movesList.length; i++) {
-                var nextStr = applyMoveToStr(boardStr, movesList[i]);
-                var score = minimax(nextStr, depth - 1, alpha, beta, true);
-                minVal = Math.min(minVal, score);
-                beta = Math.min(beta, score);
+                var uData = makeSimMove(b, movesList[i]);
+                var score = minimax(b, depth - 1, alpha, beta, true);
+                unmakeSimMove(b, movesList[i], uData);
+                if (score < minVal) minVal = score;
+                if (score < beta) beta = score;
                 if (beta <= alpha) break;
             }
             return minVal;
         }
     }
 
-    var currentBoardStr = boardToString(bd);
-    var topMoves = getMoves(botColor, currentBoardStr, false);
+    var topMoves = getMoves(botColor, simBoard, false);
     if (topMoves.length === 0) return;
 
     for (var i = 0; i < topMoves.length; i++) {
         var m = topMoves[i];
-        var tmpStr = applyMoveToStr(currentBoardStr, m);
-        var baseValue = minimax(tmpStr, searchDepth - 1, -Infinity, Infinity, botColor === 'W');
+        var uData = makeSimMove(simBoard, m);
+        var baseValue = minimax(simBoard, searchDepth - 1, -Infinity, Infinity, botColor === 'W');
+        unmakeSimMove(simBoard, m, uData);
         allEvaluatedMoves.push({ move: m, score: baseValue });
     }
 
@@ -608,15 +619,13 @@ saveState();
     }
 
     epSquare = (bd[bm.to.r][bm.to.c].toLowerCase() === 'p' && Math.abs(bm.to.r - botFromRow) === 2) ? { r: (botFromRow + bm.to.r) / 2, c: bm.to.c } : null;
-   saveState();
+    saveState();
 
     var playerColor = document.getElementById('pColor').value;
     turn = playerColor;
     endState(playerColor);
     draw();
 }
-
-
 
 
 
@@ -697,14 +706,59 @@ saveState();
 }
 
     function undo() {
-        var playerColor = document.getElementById('pColor').value;
-        if (boardHistory.length < 3 || turn !== playerColor) return;
-        boardHistory.pop(); boardHistory.pop();
-        bd = JSON.parse(boardHistory[boardHistory.length - 1]);
-        sel = null; moves = []; 
-        document.getElementById('msg').innerText = "Your Turn"; 
+    var playerColor = document.getElementById('pColor').value;
+    var minHistory = playerColor === 'W' ? 3 : 4;
+
+    // If the promotion modal is currently open, the player's move hasn't been saved yet
+    if (window.pendingPromo) {
+        window.pendingPromo = null;
+        document.getElementById('promoModal').style.display = 'none';
+        var currentSnap = JSON.parse(boardHistory[boardHistory.length - 1]);
+        bd = currentSnap.bd;
+        hasMoved = currentSnap.hasMoved;
+        epSquare = currentSnap.epSquare;
+        sel = null;
+        moves = [];
+        turn = playerColor;
+        endState(playerColor);
         draw();
+        return;
     }
+
+    if (boardHistory.length < minHistory) return;
+    if (turn !== playerColor && turn !== 'E') return;
+
+    // Pop the bot's move and the player's move
+    boardHistory.pop();
+    boardHistory.pop();
+
+    var prev = JSON.parse(boardHistory[boardHistory.length - 1]);
+    bd = prev.bd;
+    epSquare = prev.epSquare;
+
+    // Recalculate castling rights cleanly by scanning the remaining history
+    hasMoved = {
+        'W_K': false, 'W_R1': false, 'W_R8': false,
+        'B_K': false, 'B_R1': false, 'B_R8': false
+    };
+    for (var i = 0; i < boardHistory.length; i++) {
+        var hBoard = JSON.parse(boardHistory[i]).bd;
+        if (hBoard[7][4] !== 'K') hasMoved['W_K'] = true;
+        if (hBoard[7][0] !== 'R') hasMoved['W_R1'] = true;
+        if (hBoard[7][7] !== 'R') hasMoved['W_R8'] = true;
+        if (hBoard[0][4] !== 'k') hasMoved['B_K'] = true;
+        if (hBoard[0][0] !== 'r') hasMoved['B_R1'] = true;
+        if (hBoard[0][7] !== 'r') hasMoved['B_R8'] = true;
+    }
+
+    sel = null;
+    moves = [];
+    turn = playerColor;
+
+    endState(playerColor);
+    draw();
+}
+
 
     function rst() { 
         bd = JSON.parse(JSON.stringify(start)); 
