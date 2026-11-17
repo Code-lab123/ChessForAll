@@ -488,8 +488,9 @@ draw();
             var wQueens = 0, bQueens = 0;
             var wMaterial = 0, bMaterial = 0;
             var wKingR = seven, wKingC = four, bKingR = zero, bKingC = four;
-            var wPawnFiles =;
-            var bPawnFiles =;
+            var wPawnFiles = "00000000".split("").map(Number);
+var bPawnFiles = "00000000".split("").map(Number);
+
 
             for (var r = 0; r < eight; r++) {
                 var row = b[r];
