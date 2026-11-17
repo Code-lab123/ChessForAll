@@ -62,7 +62,19 @@
 
     var bd = JSON.parse(JSON.stringify(start)), sel = null, moves = [], turn = 'W';
     var syms = {'R':'♜','N':'♞','B':'♝','Q':'♛','K':'♚','P':'♟','r':'♜','n':'♞','b':'♝','q':'♛','k':'♚','p':'♟','':''};
-    var vals = {'p':10,'n':30,'b':30,'r':50,'q':90,'k':10000};
+    var vals = {'p':100,'n':300,'b':310,'r':500,'q':900,'k':100000,'P':100,'N':300,'B':310,'R':500,'Q':900,'K':100000};
+var isWhiteMap = {'P':1,'N':1,'B':1,'R':1,'Q':1,'K':1};
+var isBlackMap = {'p':1,'n':1,'b':1,'r':1,'q':1,'k':1};
+
+var N_DR = [-2, -2, -1, -1, 1, 1, 2, 2];
+var N_DC = [-1, 1, -2, 2, -2, 2, -1, 1];
+var B_DR = [-1, -1, 1, 1];
+var B_DC = [-1, 1, -1, 1];
+var R_DR = [-1, 1, 0, 0];
+var R_DC = [0, 0, -1, 1];
+var K_DR = [-1, -1, -1, 0, 0, 1, 1, 1];
+var K_DC = [-1, 0, 1, -1, 1, -1, 0, 1];
+
     var boardHistory = [];
 
 function saveState() {
@@ -92,92 +104,98 @@ saveState();
         return p ? (p === p.toUpperCase() ? 'W' : 'B') : null; 
     }
                  function getPseudo(r, c, b, checkCastlingSafe, inSim) {
-    var p = b[r][c], cl = getColor(p), t = p.toLowerCase(), m = [];
+    var p = b[r][c];
+    var isW = !!isWhiteMap[p];
+    var cl = isW ? 'W' : 'B';
+    var enemyMap = isW ? isBlackMap : isWhiteMap;
+    var m = [];
     var zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5, six = 6, seven = 7;
 
-    if (t === 'p') {
-        var d = cl === 'W' ? -1 : 1, s = cl === 'W' ? 6 : 1;
-        if (r + d >= zero && r + d < 8 && b[r + d][c] === '') {
-            m.push({ r: r + d, c: c });
-            if (r === s && b[r + 2 * d][c] === '') m.push({ r: r + 2 * d, c: c, isDouble: true });
-        }
-        var opts = [-1, 1];
-        for (var i = 0; i < 2; i++) {
-            var nc = c + opts[i];
-            if (r + d >= zero && r + d < 8 && nc >= zero && nc < 8) {
-                if (b[r + d][nc] !== '' && getColor(b[r + d][nc]) !== cl) {
-                    m.push({ r: r + d, c: nc });
-                }
-                if (!inSim && epSquare && epSquare.r === r + d && epSquare.c === nc) {
-                    m.push({ r: r + d, c: nc, isENPassant: true });
-                }
+    if (p === 'P' || p === 'p') {
+        var d = isW ? -1 : 1, s = isW ? six : one;
+        var r1 = r + d;
+        if (r1 >= zero && r1 < 8) {
+            if (b[r1][c] === '') {
+                m.push({ r: r1, c: c });
+                if (r === s && b[r + 2 * d][c] === '') m.push({ r: r + 2 * d, c: c, isDouble: true });
+            }
+            if (c > zero) {
+                if (enemyMap[b[r1][c - 1]]) m.push({ r: r1, c: c - 1 });
+                else if (!inSim && epSquare && epSquare.r === r1 && epSquare.c === c - 1) m.push({ r: r1, c: c - 1, isENPassant: true });
+            }
+            if (c < seven) {
+                if (enemyMap[b[r1][c + 1]]) m.push({ r: r1, c: c + 1 });
+                else if (!inSim && epSquare && epSquare.r === r1 && epSquare.c === c + 1) m.push({ r: r1, c: c + 1, isENPassant: true });
             }
         }
+        return m;
     }
-    if (t === 'n') {
-        var nrList = [-2, -2, -1, -1, 1, 1, 2, 2];
-        var ncList = [-1, 1, -2, 2, -2, 2, -1, 1];
+
+    if (p === 'N' || p === 'n') {
         for (var i = 0; i < 8; i++) {
-            var nr = r + nrList[i], nc = c + ncList[i];
-            if (nr >= zero && nr < 8 && nc >= zero && nc < 8 && (b[nr][nc] === '' || getColor(b[nr][nc]) !== cl)) {
-                m.push({ r: nr, c: nc });
+            var nr = r + N_DR[i], nc = c + N_DC[i];
+            if (nr >= zero && nr < 8 && nc >= zero && nc < 8) {
+                var target = b[nr][nc];
+                if (target === '' || enemyMap[target]) m.push({ r: nr, c: nc });
             }
         }
+        return m;
     }
-    if (t === 'b' || t === 'q') {
-        var drList = [-1, -1, 1, 1];
-        var dcList = [-1, 1, -1, 1];
+
+    if (p === 'B' || p === 'b' || p === 'Q' || p === 'q') {
         for (var i = 0; i < 4; i++) {
-            var nr = r + drList[i], nc = c + dcList[i];
+            var dr = B_DR[i], dc = B_DC[i];
+            var nr = r + dr, nc = c + dc;
             while (nr >= zero && nr < 8 && nc >= zero && nc < 8) {
-                if (b[nr][nc] === '') {
+                var target = b[nr][nc];
+                if (target === '') {
                     m.push({ r: nr, c: nc });
                 } else {
-                    if (getColor(b[nr][nc]) !== cl) m.push({ r: nr, c: nc });
+                    if (enemyMap[target]) m.push({ r: nr, c: nc });
                     break;
                 }
-                nr += drList[i];
-                nc += dcList[i];
+                nr += dr; nc += dc;
             }
         }
     }
-    if (t === 'r' || t === 'q') {
-        var drList = [-1, 1, 0, 0];
-        var dcList = [0, 0, -1, 1];
+
+    if (p === 'R' || p === 'r' || p === 'Q' || p === 'q') {
         for (var i = 0; i < 4; i++) {
-            var nr = r + drList[i], nc = c + dcList[i];
+            var dr = R_DR[i], dc = R_DC[i];
+            var nr = r + dr, nc = c + dc;
             while (nr >= zero && nr < 8 && nc >= zero && nc < 8) {
-                if (b[nr][nc] === '') {
+                var target = b[nr][nc];
+                if (target === '') {
                     m.push({ r: nr, c: nc });
                 } else {
-                    if (getColor(b[nr][nc]) !== cl) m.push({ r: nr, c: nc });
+                    if (enemyMap[target]) m.push({ r: nr, c: nc });
                     break;
                 }
-                nr += drList[i];
-                nc += dcList[i];
+                nr += dr; nc += dc;
             }
         }
     }
-    if (t === 'k') {
-        var drList = [-1, -1, -1, 0, 0, 1, 1, 1];
-        var dcList = [-1, 0, 1, -1, 1, -1, 0, 1];
+
+    if (p === 'K' || p === 'k') {
         for (var i = 0; i < 8; i++) {
-            var nr = r + drList[i], nc = c + dcList[i];
-            if (nr >= zero && nr < 8 && nc >= zero && nc < 8 && (b[nr][nc] === '' || getColor(b[nr][nc]) !== cl)) {
-                m.push({ r: nr, c: nc });
+            var nr = r + K_DR[i], nc = c + K_DC[i];
+            if (nr >= zero && nr < 8 && nc >= zero && nc < 8) {
+                var target = b[nr][nc];
+                if (target === '' || enemyMap[target]) m.push({ r: nr, c: nc });
             }
         }
         if (!checkCastlingSafe && !inSim) {
-            var prefix = cl;
-            var expectedRow = cl === 'W' ? seven : zero;
-            if (r === expectedRow && c === four && !hasMoved[prefix + '_K'] && !check(cl, b)) {
-                if (!hasMoved[prefix + '_R8'] && b[r][five] === '' && b[r][six] === '' && b[r][seven].toLowerCase() === 'r') {
-                    if (isSquareSafe(r, five, cl, b) && isSquareSafe(r, six, cl, b)) {
+            var expectedRow = isW ? seven : zero;
+            var enemyCl = isW ? 'B' : 'W';
+            if (r === expectedRow && c === four && !hasMoved[cl + '_K'] && !isSquareAttacked(r, c, enemyCl, b)) {
+                var rookChar = isW ? 'R' : 'r';
+                if (!hasMoved[cl + '_R8'] && b[r][five] === '' && b[r][six] === '' && b[r][seven] === rookChar) {
+                    if (!isSquareAttacked(r, five, enemyCl, b) && !isSquareAttacked(r, six, enemyCl, b)) {
                         m.push({ r: r, c: six, isCastle: true });
                     }
                 }
-                if (!hasMoved[prefix + '_R1'] && b[r][one] === '' && b[r][two] === '' && b[r][three] === '' && b[r][zero].toLowerCase() === 'r') {
-                    if (isSquareSafe(r, two, cl, b) && isSquareSafe(r, three, cl, b)) {
+                if (!hasMoved[cl + '_R1'] && b[r][one] === '' && b[r][two] === '' && b[r][three] === '' && b[r][zero] === rookChar) {
+                    if (!isSquareAttacked(r, two, enemyCl, b) && !isSquareAttacked(r, three, enemyCl, b)) {
                         m.push({ r: r, c: two, isCastle: true });
                     }
                 }
@@ -188,31 +206,83 @@ saveState();
 }
 
 
+   function isSquareAttacked(kr, kc, byColor, b) {
+    var isByWhite = (byColor === 'W');
+    var pAtt = isByWhite ? 'P' : 'p';
+    var nAtt = isByWhite ? 'N' : 'n';
+    var bAtt = isByWhite ? 'B' : 'b';
+    var rAtt = isByWhite ? 'R' : 'r';
+    var qAtt = isByWhite ? 'Q' : 'q';
+    var kAtt = isByWhite ? 'K' : 'k';
 
-   function isSquareSafe(r, c, cl, b) {
-    var tmp = JSON.parse(JSON.stringify(b));
-    for (var i = 0; i < 8; i++) {
-        for (var j = 0; j < 8; j++) {
-            if (tmp[i][j].toLowerCase() === 'k' && getColor(tmp[i][j]) === cl) tmp[i][j] = '';
-        }
+    var pRow = isByWhite ? kr + 1 : kr - 1;
+    if (pRow >= 0 && pRow < 8) {
+        if (kc > 0 && b[pRow][kc - 1] === pAtt) return true;
+        if (kc < 7 && b[pRow][kc + 1] === pAtt) return true;
     }
+
     for (var i = 0; i < 8; i++) {
-        for (var j = 0; j < 8; j++) {
-            if (tmp[i][j] && getColor(tmp[i][j]) !== cl) {
-                var moves = getPseudo(i, j, tmp, true, true);
-                for (var k = 0; k < moves.length; k++) {
-                    if (moves[k].r === r && moves[k].c === c) return false;
-                }
+        var nr = kr + N_DR[i], nc = kc + N_DC[i];
+        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && b[nr][nc] === nAtt) return true;
+    }
+
+    for (var i = 0; i < 8; i++) {
+        var nr = kr + K_DR[i], nc = kc + K_DC[i];
+        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && b[nr][nc] === kAtt) return true;
+    }
+
+    for (var i = 0; i < 4; i++) {
+        var dr = R_DR[i], dc = R_DC[i];
+        var nr = kr + dr, nc = kc + dc;
+        while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+            var sq = b[nr][nc];
+            if (sq !== '') {
+                if (sq === rAtt || sq === qAtt) return true;
+                break;
             }
+            nr += dr; nc += dc;
         }
     }
-    return true;
+
+    for (var i = 0; i < 4; i++) {
+        var dr = B_DR[i], dc = B_DC[i];
+        var nr = kr + dr, nc = kc + dc;
+        while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+            var sq = b[nr][nc];
+            if (sq !== '') {
+                if (sq === bAtt || sq === qAtt) return true;
+                break;
+            }
+            nr += dr; nc += dc;
+        }
+    }
+    return false;
 }
 
+function check(cl, b, kPos) {
+    var targetK = cl === 'W' ? 'K' : 'k';
+    var kr = -1, kc = -1;
+    if (kPos) {
+        kr = kPos.r; kc = kPos.c;
+    } else {
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                if (b[r][c] === targetK) { kr = r; kc = c; break; }
+            }
+            if (kr !== -1) break;
+        }
+    }
+    if (kr === -1) return false;
+    return isSquareAttacked(kr, kc, cl === 'W' ? 'B' : 'W', b);
+}
 
-       function getLegal(r, c, b, inSim) {
-    var pseudo = getPseudo(r, c, b, false, inSim), cl = getColor(b[r][c]), legal = [];
+function getLegal(r, c, b, inSim, kPos) {
     var origPiece = b[r][c];
+    var cl = isWhiteMap[origPiece] ? 'W' : 'B';
+    var isKing = (origPiece === 'K' || origPiece === 'k');
+    var pseudo = getPseudo(r, c, b, false, inSim);
+    var legal = [];
+
     for (var i = 0; i < pseudo.length; i++) {
         var m = pseudo[i];
         var captured = b[m.r][m.c];
@@ -225,43 +295,14 @@ saveState();
         b[m.r][m.c] = origPiece;
         b[r][c] = '';
 
-        if (!check(cl, b)) legal.push(m);
+        var activeKPos = isKing ? { r: m.r, c: m.c } : kPos;
+        if (!check(cl, b, activeKPos)) legal.push(m);
 
-        // Undo move in-place (zero memory allocation)
         b[r][c] = origPiece;
         b[m.r][m.c] = captured;
-        if (m.isENPassant) {
-            b[r][m.c] = epCaptured;
-        }
+        if (m.isENPassant) b[r][m.c] = epCaptured;
     }
     return legal;
-}
-
-
-       function check(cl, b) {
-    var kr = -1, kc = -1;
-    for (var r = 0; r < 8; r++) {
-        for (var c = 0; c < 8; c++) {
-            if (b[r][c].toLowerCase() === 'k' && getColor(b[r][c]) === cl) {
-                kr = r;
-                kc = c;
-                break;
-            }
-        }
-    }
-    if (kr === -1) return false;
-    for (var r = 0; r < 8; r++) {
-        for (var c = 0; c < 8; c++) {
-            var p = b[r][c];
-            if (p && getColor(p) !== cl) {
-                var m = getPseudo(r, c, b, true, true);
-                for (var j = 0; j < m.length; j++) {
-                    if (m[j].r === kr && m[j].c === kc) return true;
-                }
-            }
-        }
-    }
-    return false;
 }
 
 
@@ -397,24 +438,20 @@ saveState();
                 function bot() {
     var allEvaluatedMoves = [];
     var diffSetting = document.getElementById('diff').value;
-   var searchDepth = diffSetting === "1600" ? 5 : (diffSetting === "1200" ? 3 : 2);
-
+    var searchDepth = diffSetting === "1600" ? 5 : (diffSetting === "1200" ? 3 : 2);
     var botColor = document.getElementById('pColor').value === 'W' ? 'B' : 'W';
     var zero = 0, two = 2, three = 3, five = 5, six = 6, seven = 7;
 
-    var centerTable = [
-        [-3, -2, -2, -2, -2, -2, -2, -3],
-        [-2,  0,  0,  0,  0,  0,  0, -2],
-        [-2,  0,  2,  4,  4,  2,  0, -2],
-        [-2,  0,  4,  8,  8,  4,  0, -2],
-        [-2,  0,  4,  8,  8,  4,  0, -2],
-        [-2,  0,  2,  4,  4,  2,  0, -2],
-        [-2,  0,  0,  0,  0,  0,  0, -2],
-        [-3, -2, -2, -2, -2, -2, -2, -3]
-    ];
+    var centerTable = JSON.parse("[[-3,-2,-2,-2,-2,-2,-2,-3],[-2,0,0,0,0,0,0,-2],[-2,0,2,4,4,2,0,-2],[-2,0,4,8,8,4,0,-2],[-2,0,4,8,8,4,0,-2],[-2,0,2,4,4,2,0,-2],[-2,0,0,0,0,0,0,-2],[-3,-2,-2,-2,-2,-2,-2,-3]]");
 
-    // Clone the board once for the entire search tree
     var simBoard = JSON.parse(JSON.stringify(bd));
+    var wKing = { r: 7, c: 4 }, bKing = { r: 0, c: 4 };
+    for (var r = 0; r < 8; r++) {
+        for (var c = 0; c < 8; c++) {
+            if (simBoard[r][c] === 'K') { wKing.r = r; wKing.c = c; }
+            else if (simBoard[r][c] === 'k') { bKing.r = r; bKing.c = c; }
+        }
+    }
 
     function evalBoard(b) {
         var score = 0;
@@ -423,31 +460,22 @@ saveState();
             for (var c = 0; c < 8; c++) {
                 var p = row[c];
                 if (p !== '') {
-                    var type = p.toLowerCase();
-                    var val = (vals[type] || 0) * 10;
-
-                    if (type === 'p') val += pTable[r][c];
-                    else if (type === 'n') val += nTable[r][c];
-
-                    if (type === 'p' || type === 'n' || type === 'b') {
-                        val += centerTable[r][c] * 8;
-                    } else if (type === 'q') {
-                        if (p === 'Q' && r !== seven) val -= 150;
-                        if (p === 'q' && r !== zero) val -= 150;
-                    } else if (type === 'k') {
-                        var isBlackPiece = (p === 'k');
-                        if (isBlackPiece) {
-                            if (r === zero && (c === 6 || c === 2 || c === 1 || c === 7)) val += 40;
-                            else if (r === zero && c === 4) val += 10;
-                            else val -= 30;
-                        } else {
-                            if (r === seven && (c === 6 || c === 2 || c === 1 || c === 7)) val += 40;
-                            else if (r === seven && c === 4) val += 10;
-                            else val -= 30;
-                        }
+                    var val = vals[p];
+                    if (p === 'p' || p === 'P') val += pTable[r][c] + centerTable[r][c] * 8;
+                    else if (p === 'n' || p === 'N') val += nTable[r][c] + centerTable[r][c] * 8;
+                    else if (p === 'b' || p === 'B') val += centerTable[r][c] * 8;
+                    else if (p === 'q') { if (r !== zero) val -= 150; }
+                    else if (p === 'Q') { if (r !== seven) val -= 150; }
+                    else if (p === 'k') {
+                        if (r === zero && (c === 6 || c === 2 || c === 1 || c === 7)) val += 40;
+                        else if (r === zero && c === 4) val += 10;
+                        else val -= 30;
+                    } else if (p === 'K') {
+                        if (r === seven && (c === 6 || c === 2 || c === 1 || c === 7)) val += 40;
+                        else if (r === seven && c === 4) val += 10;
+                        else val -= 30;
                     }
-
-                    if (p === type) score += val;
+                    if (isBlackMap[p]) score += val;
                     else score -= val;
                 }
             }
@@ -457,38 +485,41 @@ saveState();
 
     function getMoves(cl, b, inSim) {
         var list = [];
+        var colorMap = cl === 'W' ? isWhiteMap : isBlackMap;
+        var kPos = cl === 'W' ? wKing : bKing;
         for (var r = 0; r < 8; r++) {
+            var row = b[r];
             for (var c = 0; c < 8; c++) {
-                var piece = b[r][c];
-                if (piece !== '' && getColor(piece) === cl) {
-                    var leg = getLegal(r, c, b, inSim);
+                var piece = row[c];
+                if (piece !== '' && colorMap[piece]) {
+                    var leg = getLegal(r, c, b, inSim, kPos);
                     for (var i = 0; i < leg.length; i++) {
                         var to = leg[i];
                         var target = b[to.r][to.c];
-                        // MVV-LVA score for superior alpha-beta pruning
-                        var mvvScore = target !== '' ? (vals[target.toLowerCase()] * 10 - vals[piece.toLowerCase()]) : 0;
-                        list.push({ from: { r: r, c: c }, to: to, order: mvvScore });
+                        var mvvScore = target !== '' ? (vals[target] * 10 - vals[piece]) : 0;
+                        list.push({ fr: r, fc: c, to: to, order: mvvScore });
                     }
                 }
             }
         }
-        return list.sort(function(a, b) {
-            return b.order - a.order;
-        });
+        return list.sort(function(a, b) { return b.order - a.order; });
     }
 
     function makeSimMove(b, m) {
-        var fr = m.from.r, fc = m.from.c, tr = m.to.r, tc = m.to.c;
+        var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
         var origPiece = b[fr][fc];
         var captured = b[tr][tc];
         var epCaptured = '';
 
         var placedPiece = origPiece;
         if (tr === 7 && origPiece === 'p') placedPiece = 'q';
-        if (tr === 0 && origPiece === 'P') placedPiece = 'Q';
+        else if (tr === 0 && origPiece === 'P') placedPiece = 'Q';
 
         b[tr][tc] = placedPiece;
         b[fr][fc] = '';
+
+        if (origPiece === 'K') { wKing.r = tr; wKing.c = tc; }
+        else if (origPiece === 'k') { bKing.r = tr; bKing.c = tc; }
 
         if (m.to.isENPassant) {
             epCaptured = b[fr][tc];
@@ -506,14 +537,16 @@ saveState();
         return { origPiece: origPiece, captured: captured, epCaptured: epCaptured };
     }
 
-    function unmakeSimMove(b, m, undoData) {
-        var fr = m.from.r, fc = m.from.c, tr = m.to.r, tc = m.to.c;
-        b[fr][fc] = undoData.origPiece;
-        b[tr][tc] = undoData.captured;
+    function unmakeSimMove(b, m, u) {
+        var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
+        var origPiece = u.origPiece;
+        b[fr][fc] = origPiece;
+        b[tr][tc] = u.captured;
 
-        if (m.to.isENPassant) {
-            b[fr][tc] = undoData.epCaptured;
-        }
+        if (origPiece === 'K') { wKing.r = fr; wKing.c = fc; }
+        else if (origPiece === 'k') { bKing.r = fr; bKing.c = fc; }
+
+        if (m.to.isENPassant) b[fr][tc] = u.epCaptured;
         if (m.to.isCastle) {
             if (tc === six) {
                 b[tr].splice(seven, 1, b[tr][five]);
@@ -524,13 +557,51 @@ saveState();
             }
         }
     }
+                  
+        function quiesce(b, alpha, beta, isMax, qDepth) {
+        var standPat = evalBoard(b);
+        if (qDepth === 0) return standPat;
+
+        if (isMax) {
+            if (standPat >= beta) return beta;
+            if (standPat > alpha) alpha = standPat;
+        } else {
+            if (standPat <= alpha) return alpha;
+            if (standPat < beta) beta = standPat;
+        }
+
+        var activeColor = isMax ? 'B' : 'W';
+        var allMoves = getMoves(activeColor, b, true);
+
+        for (var i = 0; i < allMoves.length; i++) {
+            var m = allMoves[i];
+            if (b[m.to.r][m.to.c] === '' && !m.to.isENPassant) continue;
+
+            var uData = makeSimMove(b, m);
+            var score = quiesce(b, alpha, beta, !isMax, qDepth - 1);
+            unmakeSimMove(b, m, uData);
+
+            if (isMax) {
+                if (score >= beta) return beta;
+                if (score > alpha) alpha = score;
+            } else {
+                if (score <= alpha) return alpha;
+                if (score < beta) beta = score;
+            }
+        }
+        return isMax ? alpha : beta;
+    }
+
 
     function minimax(b, depth, alpha, beta, isMax) {
-        if (depth === 0) return evalBoard(b);
+        if (depth === 0) return quiesce(b, alpha, beta, isMax, 4);
+
+
         var activeColor = isMax ? 'B' : 'W';
         var movesList = getMoves(activeColor, b, true);
         if (movesList.length === 0) {
-            if (check(activeColor, b)) return isMax ? -99999 + depth : 99999 - depth;
+            var kPos = isMax ? bKing : wKing;
+            if (check(activeColor, b, kPos)) return isMax ? -999999 - depth : 999999 + depth;
             return 0;
         }
 
@@ -591,24 +662,24 @@ saveState();
 
     var bm = allEvaluatedMoves[targetIndex].move;
 
-    if (bd[bm.from.r][bm.from.c] === 'K') hasMoved['W_K'] = true;
-    if (bd[bm.from.r][bm.from.c] === 'R' && bm.from.r === seven && bm.from.c === zero) hasMoved['W_R1'] = true;
-    if (bd[bm.from.r][bm.from.c] === 'R' && bm.from.r === seven && bm.from.c === seven) hasMoved['W_R8'] = true;
-    if (bd[bm.from.r][bm.from.c] === 'k') hasMoved['B_K'] = true;
-    if (bd[bm.from.r][bm.from.c] === 'r' && bm.from.r === zero && bm.from.c === zero) hasMoved['B_R1'] = true;
-    if (bd[bm.from.r][bm.from.c] === 'r' && bm.from.r === zero && bm.from.c === seven) hasMoved['B_R8'] = true;
+    if (bd[bm.fr][bm.fc] === 'K') hasMoved['W_K'] = true;
+    if (bd[bm.fr][bm.fc] === 'R' && bm.fr === seven && bm.fc === zero) hasMoved['W_R1'] = true;
+    if (bd[bm.fr][bm.fc] === 'R' && bm.fr === seven && bm.fc === seven) hasMoved['W_R8'] = true;
+    if (bd[bm.fr][bm.fc] === 'k') hasMoved['B_K'] = true;
+    if (bd[bm.fr][bm.fc] === 'r' && bm.fr === zero && bm.fc === zero) hasMoved['B_R1'] = true;
+    if (bd[bm.fr][bm.fc] === 'r' && bm.fr === zero && bm.fc === seven) hasMoved['B_R8'] = true;
 
-    if (bm.to.isENPassant) bd[bm.from.r][bm.to.c] = '';
+    if (bm.to.isENPassant) bd[bm.fr][bm.to.c] = '';
 
-    var botFromCol = bm.from.c;
-    var botFromRow = bm.from.r;
-    bd[bm.to.r][bm.to.c] = bd[bm.from.r][bm.from.c];
-    bd[bm.from.r][bm.from.c] = '';
+    var botFromCol = bm.fc;
+    var botFromRow = bm.fr;
+    bd[bm.to.r][bm.to.c] = bd[bm.fr][bm.fc];
+    bd[bm.fr][bm.fc] = '';
 
     if (bd[bm.to.r][bm.to.c] === 'p' && bm.to.r === seven) bd[bm.to.r][bm.to.c] = 'q';
     if (bd[bm.to.r][bm.to.c] === 'P' && bm.to.r === zero) bd[bm.to.r][bm.to.c] = 'Q';
 
-    if (bd[bm.to.r][bm.to.c].toLowerCase() === 'k' && Math.abs(bm.to.c - botFromCol) === 2) {
+    if ((bd[bm.to.r][bm.to.c] === 'K' || bd[bm.to.r][bm.to.c] === 'k') && Math.abs(bm.to.c - botFromCol) === 2) {
         if (bm.to.c === six) {
             bd[bm.to.r].splice(five, 1, bd[bm.to.r][seven]);
             bd[bm.to.r].splice(seven, 1, '');
@@ -619,7 +690,7 @@ saveState();
         }
     }
 
-    epSquare = (bd[bm.to.r][bm.to.c].toLowerCase() === 'p' && Math.abs(bm.to.r - botFromRow) === 2) ? { r: (botFromRow + bm.to.r) / 2, c: bm.to.c } : null;
+    epSquare = ((bd[bm.to.r][bm.to.c] === 'p' || bd[bm.to.r][bm.to.c] === 'P') && Math.abs(bm.to.r - botFromRow) === 2) ? { r: (botFromRow + bm.to.r) / 2, c: bm.to.c } : null;
     saveState();
 
     var playerColor = document.getElementById('pColor').value;
