@@ -65,24 +65,14 @@
     var isBlackMap = {'p':1,'n':1,'b':1,'r':1,'q':1,'k':1};
     var boardHistory = [];
 
-    function parseNums(str) {
-        return str.split(',').map(Number);
-    }
-
-    var N_DR = parseNums('-2,-2,-1,-1,1,1,2,2');
-    var N_DC = parseNums('-1,1,-2,2,-2,2,-1,1');
-    var B_DR = parseNums('-1,-1,1,1');
-    var B_DC = parseNums('-1,1,-1,1');
-    var R_DR = parseNums('-1,1,0,0');
-    var R_DC = parseNums('0,0,-1,1');
-    var K_DR = parseNums('-1,-1,-1,0,0,1,1,1');
-    var K_DC = parseNums('-1,0,1,-1,1,-1,0,1');
-
-    var pFlat = parseNums('0,0,0,0,0,0,0,0,50,50,50,50,50,50,50,50,10,10,20,30,30,20,10,10,5,5,10,25,25,10,5,5,0,0,0,20,20,0,0,0,5,-5,-10,0,0,-10,-5,5,5,10,10,-20,-20,10,10,5,0,0,0,0,0,0,0,0');
-    var nFlat = parseNums('-50,-40,-30,-30,-30,-30,-40,-50,-40,-20,0,5,5,0,-20,-40,-30,5,15,20,20,15,5,-30,-30,0,20,30,30,20,0,-30,-30,5,20,30,30,20,5,-30,-30,0,15,20,20,15,0,-30,-40,-20,0,0,0,0,-20,-40,-50,-40,-30,-30,-30,-30,-40,-50');
-    var bFlat = parseNums('-20,-10,-10,-10,-10,-10,-10,-20,-10,5,0,0,0,0,5,-10,-10,10,10,10,10,10,10,-10,-10,0,10,15,15,10,0,-10,-10,5,5,15,15,5,5,-10,-10,0,10,10,10,10,0,-10,-10,5,0,0,0,0,5,-10,-20,-10,-10,-10,-10,-10,-10,-20');
-    var rFlat = parseNums('0,0,0,5,5,0,0,0,5,15,15,15,15,15,15,5,-5,0,0,0,0,0,0,-5,-5,0,0,0,0,0,0,-5,-5,0,0,0,0,0,0,-5,-5,0,0,0,0,0,0,-5,5,15,15,15,15,15,15,5,0,0,0,5,5,0,0,0');
-    var cFlat = parseNums('-3,-2,-2,-2,-2,-2,-2,-3,-2,0,0,0,0,0,0,-2,-2,0,2,4,4,2,0,-2,-2,0,4,8,8,4,0,-2,-2,0,4,8,8,4,0,-2,-2,0,2,4,4,2,0,-2,-2,0,0,0,0,0,0,-2,-3,-2,-2,-2,-2,-2,-2,-3');
+    var N_DR = [-2, -2, -1, -1, 1, 1, 2, 2];
+    var N_DC = [-1, 1, -2, 2, -2, 2, -1, 1];
+    var B_DR = [-1, -1, 1, 1];
+    var B_DC = [-1, 1, -1, 1];
+    var R_DR = [-1, 1, 0, 0];
+    var R_DC = [0, 0, -1, 1];
+    var K_DR = [-1, -1, -1, 0, 0, 1, 1, 1];
+    var K_DC = [-1, 0, 1, -1, 1, -1, 0, 1];
 
     var epSquare = null;
     var hasMoved = {
@@ -205,32 +195,34 @@
 
         if (p === 'N' || p === 'n') {
             for (var i = 0; i < eight; i++) {
-var nr = r + N_DR[i], nc = c + N_DC[i];
-if (nr >= zero && nr < eight && nc >= zero && nc < eight) {
-var target = b[nr][nc];
-if (target === '' || enemyMap[target]) m.push({ r: nr, c: nc });
-}
-}
-return m;
-}
-if (p === 'B' || p === 'b' || p === 'Q' || p === 'q') {
-for (var i = 0; i < four; i++) {
-var dr = B_DR[i], dc = B_DC[i];
-var nr = r + dr, nc = c + dc;
-while (nr >= zero && nr < eight && nc >= zero && nc < eight) {
-var target = b[nr][nc];
-if (target === '') {
-m.push({ r: nr, c: nc });
-} else {
-if (enemyMap[target]) m.push({ r: nr, c: nc });
-break;
-}
-nr += dr; nc += dc;
-}
-}
-}
-if (p === 'R' || p === 'r' || p === 'Q' || p === 'q') {
-for (var i = 0; i < four; i++) {
+                var nr = r + N_DR[i], nc = c + N_DC[i];
+                if (nr >= zero && nr < eight && nc >= zero && nc < eight) {
+                    var target = b[nr][nc];
+                    if (target === '' || enemyMap[target]) m.push({ r: nr, c: nc });
+                }
+            }
+            return m;
+        }
+
+        if (p === 'B' || p === 'b' || p === 'Q' || p === 'q') {
+            for (var i = 0; i < four; i++) {
+                var dr = B_DR[i], dc = B_DC[i];
+                var nr = r + dr, nc = c + dc;
+                while (nr >= zero && nr < eight && nc >= zero && nc < eight) {
+                    var target = b[nr][nc];
+                    if (target === '') {
+                        m.push({ r: nr, c: nc });
+                    } else {
+                        if (enemyMap[target]) m.push({ r: nr, c: nc });
+                        break;
+                    }
+                    nr += dr; nc += dc;
+                }
+            }
+        }
+
+        if (p === 'R' || p === 'r' || p === 'Q' || p === 'q') {
+            for (var i = 0; i < four; i++) {
 var dr = R_DR[i], dc = R_DC[i];
 var nr = r + dr, nc = c + dc;
 while (nr >= zero && nr < eight && nc >= zero && nc < eight) {
@@ -298,7 +290,9 @@ if (m.isENPassant) b[r][m.c] = epCaptured;
 return legal;
 }
 function draw() {
-var t = document.getElementById('tbl'); t.innerHTML = '';
+var t = document.getElementById('tbl');
+if (!t) return;
+t.innerHTML = '';
 for (var r = 0; r < 8; r++) {
 var tr = document.createElement('tr');
 for (var c = 0; c < 8; c++) {
@@ -400,22 +394,34 @@ draw();
 }
 function bot() {
 var diffSetting = document.getElementById('diff').value;
-var maxDepth = diffSetting === "1600" ? 6 : (diffSetting === "1200" ? 4 : 2);
-var maxQDepth = diffSetting === "1600" ? 6 : (diffSetting === "1200" ? 4 : 2);
-var timeLimitMs = diffSetting === "1600" ? 650 : (diffSetting === "1200" ? 250 : 90);
+var maxDepth = diffSetting === "1600" ? 5 : (diffSetting === "1200" ? 3 : 2);
+var maxQDepth = diffSetting === "1600" ? 4 : (diffSetting === "1200" ? 3 : 2);
+var timeLimitMs = diffSetting === "1600" ? 450 : (diffSetting === "1200" ? 200 : 80);
 var startTime = Date.now();
 var timeUp = false;
 var botColor = document.getElementById('pColor').value === 'W' ? 'B' : 'W';
 var zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5, six = 6, seven = 7, eight = 8;
-var tt = Object.create(null);
-var ttSize = 0;
-function getBoardKey(b, isMax) {
-var k = isMax ? 'B:' : 'W:';
-for (var r = 0; r < eight; r++) {
-k += b[r].join(',');
-}
-return k;
-}
+var pFlat = "0000000055500555000000000000000000000000000000005550055500000000".split("").map(Number);
+var nFlat = [
+-50,-40,-30,-30,-30,-30,-40,-50,
+-40,-20,  0,  5,  5,  0,-20,-40,
+-30,  5, 15, 20, 20, 15,  5,-30,
+-30,  0, 20, 30, 30, 20,  0,-30,
+-30,  5, 20, 30, 30, 20,  5,-30,
+-30,  0, 15, 20, 20, 15,  0,-30,
+-40,-20,  0,  0,  0,  0,-20,-40,
+-50,-40,-30,-30,-30,-30,-40,-50
+];
+var cFlat = [
+-3,-2,-2,-2,-2,-2,-2,-3,
+-2, 0, 0, 0, 0, 0, 0,-2,
+-2, 0, 2, 4, 4, 2, 0,-2,
+-2, 0, 4, 8, 8, 4, 0,-2,
+-2, 0, 4, 8, 8, 4, 0,-2,
+-2, 0, 2, 4, 4, 2, 0,-2,
+-2, 0, 0, 0, 0, 0, 0,-2,
+-3,-2,-2,-2,-2,-2,-2,-3
+];
 var simBoard = JSON.parse(JSON.stringify(bd));
 var wKing = { r: seven, c: four }, bKing = { r: zero, c: four };
 for (var r = 0; r < eight; r++) {
@@ -430,8 +436,6 @@ var wBishops = 0, bBishops = 0;
 var wQueens = 0, bQueens = 0;
 var wMaterial = 0, bMaterial = 0;
 var wKingR = seven, wKingC = four, bKingR = zero, bKingC = four;
-var wPawnFiles = parseNums('0,0,0,0,0,0,0,0');
-var bPawnFiles = parseNums('0,0,0,0,0,0,0,0');
 for (var r = 0; r < eight; r++) {
 var row = b[r];
 var r8 = r * eight;
@@ -442,55 +446,46 @@ var idx = r8 + c;
 var val = vals[p];
 if (p === 'p') {
 bMaterial += 100;
-bPawnFiles[c]++;
-var mirrorIdx = (seven - r) * eight + c;
-val += pFlat[mirrorIdx];
-if (r > zero) {
-if ((c > zero && b[r - one][c - one] === 'p') || (c < seven && b[r - one][c + one] === 'p')) {
-val += 12;
-}
-}
+var pBonus = (c === three || c === four) && r === one ? -20 : pFlat[idx];
+val += pBonus + cFlat[idx] * three + (r - one) * seven;
+if (r > zero && ((c > zero && b[r - one][c - one] === 'p') || (c < seven && b[r - one][c + one] === 'p'))) val += 10;
 } else if (p === 'P') {
 wMaterial += 100;
-wPawnFiles[c]++;
-val += pFlat[idx];
-if (r < seven) {
-if ((c > zero && b[r + one][c - one] === 'P') || (c < seven && b[r + one][c + one] === 'P')) {
-val += 12;
-}
-}
+var pBonus = (c === three || c === four) && r === six ? -20 : pFlat[idx];
+val += pBonus + cFlat[idx] * three + (six - r) * seven;
+if (r < seven && ((c > zero && b[r + one][c - one] === 'P') || (c < seven && b[r + one][c + one] === 'P'))) val += 10;
 } else if (p === 'n') {
 bMaterial += 300;
-val += nFlat[idx];
-if (r === zero) val -= 12;
+val += nFlat[idx] + cFlat[idx] * six;
+if (r === zero) val -= 10;
 } else if (p === 'N') {
 wMaterial += 300;
-val += nFlat[idx];
-if (r === seven) val -= 12;
+val += nFlat[idx] + cFlat[idx] * six;
+if (r === seven) val -= 10;
 } else if (p === 'b') {
 bMaterial += 310;
 bBishops++;
-val += bFlat[idx];
-if (r === zero) val -= 12;
+val += cFlat[idx] * 9;
+if (r === zero) val -= 10;
 } else if (p === 'B') {
 wMaterial += 310;
 wBishops++;
-val += bFlat[idx];
-if (r === seven) val -= 12;
+val += cFlat[idx] * 9;
+if (r === seven) val -= 10;
 } else if (p === 'r') {
 bMaterial += 500;
-val += rFlat[idx];
+if (r === six) val += 25;
 } else if (p === 'R') {
 wMaterial += 500;
-val += rFlat[idx];
+if (r === one) val += 25;
 } else if (p === 'q') {
 bMaterial += 900;
 bQueens++;
-if (r !== zero && r < three) val -= 25;
+if (r !== zero && r < three) val -= 35;
 } else if (p === 'Q') {
 wMaterial += 900;
 wQueens++;
-if (r !== seven && r > four) val -= 25;
+if (r !== seven && r > four) val -= 35;
 } else if (p === 'k') {
 bKingR = r; bKingC = c;
 } else if (p === 'K') {
@@ -500,20 +495,8 @@ if (isBlackMap[p]) score += val;
 else score -= val;
 }
 }
-for (var f = 0; f < eight; f++) {
-if (bPawnFiles[f] > one) score -= (bPawnFiles[f] - one) * 22;
-if (wPawnFiles[f] > one) score += (wPawnFiles[f] - one) * 22;
-if (bPawnFiles[f] > zero) {
-var bHasNeighbor = (f > zero && bPawnFiles[f - one] > zero) || (f < seven && bPawnFiles[f + one] > zero);
-if (!bHasNeighbor) score -= 15;
-}
-if (wPawnFiles[f] > zero) {
-var wHasNeighbor = (f > zero && wPawnFiles[f - one] > zero) || (f < seven && wPawnFiles[f + one] > zero);
-if (!wHasNeighbor) score += 15;
-}
-}
-if (bBishops >= two) score += 40;
-if (wBishops >= two) score -= 40;
+if (bBishops >= two) score += 35;
+if (wBishops >= two) score -= 35;
 var isEndgame = (wQueens === zero && bQueens === zero) || (wMaterial <= 1300 && bMaterial <= 1300);
 if (isEndgame) {
 score += cFlat[bKingR * eight + bKingC] * 10;
@@ -528,12 +511,12 @@ var bEdgeDist = Math.abs(bKingR - 3.5) + Math.abs(bKingC - 3.5);
 score -= Math.round(bEdgeDist * 14) + (14 - kingDist) * six;
 }
 } else {
-if (bKingR === zero && (bKingC === six || bKingC === two || bKingC === one || bKingC === seven)) score += 55;
+if (bKingR === zero && (bKingC === six || bKingC === two || bKingC === one || bKingC === seven)) score += 50;
 else if (bKingR === zero && bKingC === four) score += 10;
-else score -= 45;
-if (wKingR === seven && (wKingC === six || wKingC === two || wKingC === one || wKingC === seven)) score -= 55;
+else score -= 40;
+if (wKingR === seven && (wKingC === six || wKingC === two || wKingC === one || wKingC === seven)) score -= 50;
 else if (wKingR === seven && wKingC === four) score -= 10;
-else score += 45;
+else score += 40;
 }
 return score;
 }
@@ -551,7 +534,6 @@ var to = pseudo[i];
 var target = b[to.r][to.c];
 if (capturesOnly && target === '' && !to.isENPassant) continue;
 var mvvScore = target !== '' ? (vals[target] * 10 - vals[piece]) : 0;
-if ((piece === 'P' && to.r === zero) || (piece === 'p' && to.r === seven)) mvvScore += 800;
 list.push({ fr: r, fc: c, to: to, order: mvvScore });
 }
 }
@@ -650,24 +632,14 @@ if ((++nodes & 63) === 0 && Date.now() - startTime > timeLimitMs) {
 timeUp = true;
 return 0;
 }
-var origAlpha = alpha;
-var origBeta = beta;
-var key = getBoardKey(b, isMax);
-var hit = tt[key];
-if (hit && hit.depth >= depth) {
-if (hit.flag === 0) return hit.val;
-if (hit.flag === 1 && hit.val > alpha) alpha = hit.val;
-else if (hit.flag === two && hit.val < beta) beta = hit.val;
-if (alpha >= beta) return hit.val;
-}
 if (depth === 0) return quiesce(b, alpha, beta, isMax, maxQDepth);
 var activeColor = isMax ? 'B' : 'W';
 var enemyColor = isMax ? 'W' : 'B';
 var myKing = isMax ? bKing : wKing;
 var movesList = getFastMoves(activeColor, b, true, false);
 var legalCount = 0;
-var bestScore = isMax ? -Infinity : Infinity;
 if (isMax) {
+var maxVal = -Infinity;
 for (var i = 0; i < movesList.length; i++) {
 var uData = makeSimMove(b, movesList[i]);
 if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
@@ -678,14 +650,16 @@ legalCount++;
 var score = minimax(b, depth - 1, alpha, beta, false);
 unmakeSimMove(b, movesList[i], uData);
 if (timeUp) return 0;
-if (score > bestScore) bestScore = score;
+if (score > maxVal) maxVal = score;
 if (score > alpha) alpha = score;
 if (beta <= alpha) break;
 }
 if (legalCount === 0) {
 return isSquareAttacked(myKing.r, myKing.c, enemyColor, b) ? -999999 - depth : 0;
 }
+return maxVal;
 } else {
+var minVal = Infinity;
 for (var i = 0; i < movesList.length; i++) {
 var uData = makeSimMove(b, movesList[i]);
 if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
@@ -696,24 +670,15 @@ legalCount++;
 var score = minimax(b, depth - 1, alpha, beta, true);
 unmakeSimMove(b, movesList[i], uData);
 if (timeUp) return 0;
-if (score < bestScore) bestScore = score;
+if (score < minVal) minVal = score;
 if (score < beta) beta = score;
 if (beta <= alpha) break;
 }
 if (legalCount === 0) {
 return isSquareAttacked(myKing.r, myKing.c, enemyColor, b) ? 999999 + depth : 0;
 }
+return minVal;
 }
-if (ttSize < 25000) {
-var flag = 0;
-if (bestScore <= origAlpha) flag = two;
-else if (bestScore >= origBeta) flag = 1;
-if (!hit || depth >= hit.depth) {
-if (!hit) ttSize++;
-tt[key] = { depth: depth, val: bestScore, flag: flag };
-}
-}
-return bestScore;
 }
 var topMoves = [];
 var rootColorMap = botColor === 'W' ? isWhiteMap : isBlackMap;
@@ -734,6 +699,7 @@ topMoves.push({ fr: r, fc: c, to: to, order: mvvScore });
 }
 topMoves.sort(function(a, b) { return b.order - a.order; });
 if (topMoves.length === 0) return;
+// Board-State Opening Book (counts actual pieces off starting squares)
 var bm = null;
 var botPiecesMoved = 0;
 if (botColor === 'W') {
@@ -952,7 +918,6 @@ document.getElementById('msg').innerText = "Your Turn (White)";
 draw();
 }
 draw();
-</script>
 
 
 <br>
