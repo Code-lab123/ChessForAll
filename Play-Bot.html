@@ -399,7 +399,7 @@ draw();
 }
 }
 }
-        function bot() {
+            function bot() {
         var diffSetting = document.getElementById('diff').value;
         var maxDepth = diffSetting === "1600" ? 6 : (diffSetting === "1200" ? 4 : 2);
         var timeLimitMs = diffSetting === "1600" ? 450 : (diffSetting === "1200" ? 200 : 80);
@@ -452,7 +452,7 @@ draw();
             -3,-2,-2,-2,-2,-2,-2,-3
         ];
 
-        // Transposition Table (caches board evaluations so identical positions aren't re-searched)
+        // Transposition Table
         var tt = Object.create(null);
         var ttSize = 0;
 
@@ -492,11 +492,11 @@ draw();
                     if (p === 'p') {
                         bMaterial += 100;
                         var pBonus = (c === three || c === four) && r === one ? -20 : pFlat[idx];
-                        val += pBonus + cFlat[idx] * eight + (r - one) * 7;
+                        val += pBonus + cFlat[idx] * three + (r - one) * seven;
                     } else if (p === 'P') {
                         wMaterial += 100;
                         var pBonus = (c === three || c === four) && r === six ? -20 : pFlat[idx];
-                        val += pBonus + cFlat[idx] * eight + (six - r) * 7;
+                        val += pBonus + cFlat[idx] * three + (six - r) * seven;
                     } else if (p === 'n') {
                         bMaterial += 300;
                         val += nFlat[idx] + cFlat[idx] * six;
@@ -544,7 +544,6 @@ draw();
                 score += cFlat[bKingR * eight + bKingC] * 10;
                 score -= cFlat[wKingR * eight + wKingC] * 10;
 
-                // Endgame Mop-Up Logic: forces losing king to edges and brings winning king closer for mate
                 var matDiff = bMaterial - wMaterial;
                 var kingDist = Math.abs(bKingR - wKingR) + Math.abs(bKingC - wKingC);
                 if (matDiff >= 300) {
@@ -581,7 +580,6 @@ draw();
                             var target = b[to.r][to.c];
                             if (capturesOnly && target === '' && !to.isENPassant) continue;
                             var mvvScore = target !== '' ? (vals[target] * 10 - vals[piece]) : 0;
-                            // Bonus ordering for promotions and central moves
                             if ((piece === 'P' && to.r === zero) || (piece === 'p' && to.r === seven)) mvvScore += 800;
                             list.push({ fr: r, fc: c, to: to, order: mvvScore });
                         }
@@ -629,11 +627,12 @@ draw();
             b[fr][fc] = origPiece;
             b[tr][tc] = u.captured;
 
-if (origPiece === 'K') { wKing.r = fr; wKing.c = fc; }
-else if (origPiece === 'k') { bKing.r = fr; bKing.c = fc; }
-if (m.to.isENPassant) b[fr][tc] = u.epCaptured;
-if (m.to.isCastle) {
-if (tc === six) {
+            if (origPiece === 'K') { wKing.r = fr; wKing.c = fc; }
+            else if (origPiece === 'k') { bKing.r = fr; bKing.c = fc; }
+
+            if (m.to.isENPassant) b[fr][tc] = u.epCaptured;
+            if (m.to.isCastle) {
+                if (tc === six) {
 b[tr].splice(seven, 1, b[tr][five]);
 b[tr].splice(five, 1, '');
 } else if (tc === two) {
@@ -772,17 +771,34 @@ topMoves.push({ fr: r, fc: c, to: to, order: mvvScore });
 }
 topMoves.sort(function(a, b) { return b.order - a.order; });
 if (topMoves.length === 0) return;
-// Opening Book: Plays a 2-square King's or Queen's Pawn move on Turn 1
+// Smart 2-Move Opening Book
 var bm = null;
-if (boardHistory.length <= two) {
-var preferredCols = [four, three];
-if (botColor === 'B' && Math.random() > 0.7) preferredCols = [four, three, two];
-var bookMoves = topMoves.filter(function(m) {
-var p = simBoard[m.fr][m.fc];
-return (p === 'p' || p === 'P') && Math.abs(m.to.r - m.fr) === two && preferredCols.indexOf(m.fc) !== -1;
+if (boardHistory.length <= four) {
+var candidateMoves = [];
+if (botColor === 'W') {
+if (boardHistory.length === one) {
+candidateMoves = [{ fr: six, fc: four, tr: four, tc: four }, { fr: six, fc: three, tr: four, tc: three }];
+} else if (boardHistory.length === three) {
+candidateMoves = [{ fr: seven, fc: six, tr: five, tc: five }, { fr: seven, fc: one, tr: five, tc: two }];
+}
+} else {
+if (boardHistory.length === two) {
+if (simBoard[four][four] === 'P') {
+candidateMoves = [{ fr: one, fc: four, tr: three, tc: four }, { fr: one, fc: two, tr: three, tc: two }];
+} else {
+candidateMoves = [{ fr: one, fc: three, tr: three, tc: three }, { fr: zero, fc: six, tr: two, tc: five }];
+}
+} else if (boardHistory.length === four) {
+candidateMoves = [{ fr: zero, fc: one, tr: two, tc: two }, { fr: zero, fc: six, tr: two, tc: five }];
+}
+}
+var validBook = topMoves.filter(function(m) {
+return candidateMoves.some(function(cm) {
+return cm.fr === m.fr && cm.fc === m.fc && cm.tr === m.to.r && cm.tc === m.to.c;
 });
-if (bookMoves.length > zero) {
-bm = bookMoves[Math.floor(Math.random() * bookMoves.length)];
+});
+if (validBook.length > zero) {
+bm = validBook[Math.floor(Math.random() * validBook.length)];
 }
 }
 if (!bm) {
