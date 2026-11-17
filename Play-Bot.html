@@ -96,8 +96,27 @@ saveState();
 
 
           // Safe string parsing prevents the platform filter from stripping out numeric array rows
-    var pTable = JSON.parse("[[0,0,0,0,0,0,0,0],[5,5,5,-20,-20,5,5,5],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[5,5,5,-20,-20,5,5,5],[0,0,0,0,0,0,0,0]]");
-    var nTable = JSON.parse("[[-50,-40,-30,-30,-30,-30,-40,-50],[-40,-20,0,5,5,0,-20,-40],[-30,5,15,20,20,15,5,-30],[-30,0,20,30,30,20,0,-30],[-30,5,20,30,30,20,5,-30],[-30,0,15,20,20,15,0,-30],[-40,-20,0,0,0,0,-20,-40],[-50,-40,-30,-30,-30,-30,-40,-50]]");
+       var pTable = "0000000055500555000000000000000000000000000000005550055500000000".split("").map(Number);
+    var nTable = [
+        -50,-40,-30,-30,-30,-30,-40,-50,
+        -40,-20,  0,  5,  5,  0,-20,-40,
+        -30,  5, 15, 20, 20, 15,  5,-30,
+        -30,  0, 20, 30, 30, 20,  0,-30,
+        -30,  5, 20, 30, 30, 20,  5,-30,
+        -30,  0, 15, 20, 20, 15,  0,-30,
+        -40,-20,  0,  0,  0,  0,-20,-40,
+        -50,-40,-30,-30,-30,-30,-40,-50
+    ];
+    var centerTable = [
+        -3,-2,-2,-2,-2,-2,-2,-3,
+        -2, 0, 0, 0, 0, 0, 0,-2,
+        -2, 0, 2, 4, 4, 2, 0,-2,
+        -2, 0, 4, 8, 8, 4, 0,-2,
+        -2, 0, 4, 8, 8, 4, 0,-2,
+        -2, 0, 2, 4, 4, 2, 0,-2,
+        -2, 0, 0, 0, 0, 0, 0,-2,
+        -3,-2,-2,-2,-2,-2,-2,-3
+    ];
 
 
     function getColor(p) { 
@@ -454,25 +473,30 @@ function getLegal(r, c, b, inSim, kPos) {
         }
     }
 
-    function evalBoard(b) {
+        function evalBoard(b) {
         var score = 0;
         for (var r = 0; r < 8; r++) {
             var row = b[r];
+            var r8 = r * 8;
             for (var c = 0; c < 8; c++) {
                 var p = row[c];
                 if (p !== '') {
+                    var idx = r8 + c;
                     var val = vals[p];
-                    if (p === 'p' || p === 'P') val += pTable[r][c] + centerTable[r][c] * 8;
-                    else if (p === 'n' || p === 'N') val += nTable[r][c] + centerTable[r][c] * 8;
-                    else if (p === 'b' || p === 'B') val += centerTable[r][c] * 8;
+                    if (p === 'p' || p === 'P') {
+                        var pBonus = (c === 3 || c === 4) && (r === 1 || r === 6) ? -20 : pTable[idx];
+                        val += pBonus + centerTable[idx] * 8;
+                    }
+                    else if (p === 'n' || p === 'N') val += nTable[idx] + centerTable[idx] * 8;
+                    else if (p === 'b' || p === 'B') val += centerTable[idx] * 8;
                     else if (p === 'q') { if (r !== zero) val -= 150; }
                     else if (p === 'Q') { if (r !== seven) val -= 150; }
                     else if (p === 'k') {
-                        if (r === zero && (c === six || c === two || c === one || c === seven)) val += 40;
+                        if (r === zero && (c === six || c === two || c === 1 || c === seven)) val += 40;
                         else if (r === zero && c === four) val += 10;
                         else val -= 30;
                     } else if (p === 'K') {
-                        if (r === seven && (c === six || c === two || c === one || c === seven)) val += 40;
+                        if (r === seven && (c === six || c === two || c === 1 || c === seven)) val += 40;
                         else if (r === seven && c === four) val += 10;
                         else val -= 30;
                     }
@@ -483,6 +507,7 @@ function getLegal(r, c, b, inSim, kPos) {
         }
         return score;
     }
+
 
     // Fast pseudo-move generator for the search tree (skips expensive legal check until move is actually searched)
     function getFastMoves(cl, b, inSim, capturesOnly) {
