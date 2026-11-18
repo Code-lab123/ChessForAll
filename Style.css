@@ -64,9 +64,10 @@
   justify-content: center;
   align-content: center;
 }
-.spacers{
-  border: none;
-  height: 7px;               
-  background-color: "Brown"; 
+.dashed-line {
+  width: 100%;                  
+  border-bottom: 5px dashed brown; 
+  margin: 20px 0;                
 }
+
 
