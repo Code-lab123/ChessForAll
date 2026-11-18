@@ -77,5 +77,13 @@ box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
   margin: 20px 0;  
   background-color: lightblue;
 }
+blockquote {
+  color: #e0e0e0; /* Light gray/white so it's easy to read */
+  font-style: italic;
+  width: 60%; /* Keeps the line from stretching too wide */
+  margin: 25px auto; /* Centers it on the page */
+  padding-left: 15px;
+  border-left: 4px solid #a8c69f; /* Matches your green header box */
+}
 
 
