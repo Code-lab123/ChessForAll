@@ -65,7 +65,8 @@
   align-content: center;
 }
 #spacers{
-  width: 5px;
-  color: red;
-  border-radius: 20px;
+  border: none;
+  height: 7px;               
+  background-color: "Brown"; 
 }
+
