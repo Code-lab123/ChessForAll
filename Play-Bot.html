@@ -12,18 +12,19 @@
 <body>
 <div style="text-align: center; max-width: 380px; margin: 0 auto; color: #fff; font-family: sans-serif; background-color: #1e1e24; padding: 15px; border-radius: 8px; position: relative;">
     <div id="msg" style="font-weight: bold; margin-bottom: 10px; font-size: 16px; font-family: sans-serif;">Your Turn (White)</div>
-    <div style="margin-bottom: 12px; display: flex; justify-content: center; gap: 15px;">
+    <div style="margin-bottom: 10px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
         <div>
-            <label for="diff" style="font-size: 14px; font-weight: bold; margin-right: 5px;">Difficulty:</label>
-            <select id="diff" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #3c4043; background: #2b2b36; color: #fff; font-weight: bold; cursor: pointer;">
+            <label for="diff" style="font-size: 13px; font-weight: bold; margin-right: 4px;">Difficulty:</label>
+            <select id="diff" onchange="updateUndoVisibility()" style="padding: 4px 6px; border-radius: 4px; border: 1px solid #3c4043; background: #2b2b36; color: #fff; font-weight: bold; cursor: pointer; font-size: 13px;">
                 <option value="800">Easy</option>
                 <option value="1200">Medium</option>
                 <option value="1600" selected>Hard</option>
+                <option value="extra">Extra Hard (No Undo)</option>
             </select>
         </div>
         <div>
-            <label for="pColor" style="font-size: 14px; font-weight: bold; margin-right: 5px;">Play As:</label>
-            <select id="pColor" onchange="changeColor()" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #3c4043; background: #2b2b36; color: #fff; font-weight: bold; cursor: pointer;">
+            <label for="pColor" style="font-size: 13px; font-weight: bold; margin-right: 4px;">Play As:</label>
+            <select id="pColor" onchange="changeColor()" style="padding: 4px 6px; border-radius: 4px; border: 1px solid #3c4043; background: #2b2b36; color: #fff; font-weight: bold; cursor: pointer; font-size: 13px;">
                 <option value="W" selected>White</option>
                 <option value="B">Black</option>
             </select>
@@ -42,9 +43,20 @@
 
     <table id="tbl" style="border-collapse: collapse; margin: 0 auto; border: 3px solid #3c4043; width: 360px; height: 360px; table-layout: fixed;"></table>
 
-    <button onclick="undo()" style="margin-top: 10px; width: 100%; padding: 8px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #555555; color: white; border: none; border-radius: 4px; margin-bottom: 5px;">Undo Move</button>
-    <button onclick="rst()" style="margin-top: 5px; width: 100%; padding: 8px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #007acc; color: white; border: none; border-radius: 4px;">Restart Game</button>
+    <!-- Live Algebraic Notation Move List -->
+    <div id="pgnBox" style="margin-top: 8px; background: #2b2b36; border: 1px solid #3c4043; border-radius: 4px; padding: 6px 8px; height: 38px; overflow-y: auto; text-align: left; font-size: 12px; color: #dcdcdc; line-height: 1.4; font-family: monospace;">Moves will appear here...</div>
+
+    <!-- Game Controls & Analysis Board Export -->
+    <div style="display: flex; gap: 6px; margin-top: 8px;">
+        <button id="undoBtn" onclick="undo()" style="flex: 1; padding: 8px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #555555; color: white; border: none; border-radius: 4px;">Undo Move</button>
+        <button onclick="rst()" style="flex: 1; padding: 8px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #007acc; color: white; border: none; border-radius: 4px;">Restart Game</button>
+    </div>
+    <div style="display: flex; gap: 6px; margin-top: 6px;">
+        <button id="copyPgnBtn" onclick="copyExport('pgn')" style="flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #2b2b36; color: #7fffd4; border: 1px solid #3c4043; border-radius: 4px;">Copy PGN (Analysis)</button>
+        <button id="copyFenBtn" onclick="copyExport('fen')" style="flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #2b2b36; color: #7fffd4; border: 1px solid #3c4043; border-radius: 4px;">Copy FEN</button>
+    </div>
 </div>
+
 <script>
     var start = JSON.parse('[["r","n","b","q","k","b","n","r"],["p","p","p","p","p","p","p","p"],["","","","","","","",""],["","","","","","","",""],["","","","","","","",""],["","","","","","","",""],["P","P","P","P","P","P","P","P"],["R","N","B","Q","K","B","N","R"]]');
 
@@ -54,15 +66,19 @@
     var isWhiteMap = {'P':1,'N':1,'B':1,'R':1,'Q':1,'K':1};
     var isBlackMap = {'p':1,'n':1,'b':1,'r':1,'q':1,'k':1};
     var boardHistory = [];
+    var moveHistory = [];
+    var lastMove = null;
+    var halfMoves = 0;
+    var gameResult = '*';
 
-    var N_DR = JSON.parse('[-2,-2,-1,-1,1,1,2,2]');
-    var N_DC = JSON.parse('[-1,1,-2,2,-2,2,-1,1]');
-    var B_DR = JSON.parse('[-1,-1,1,1]');
-    var B_DC = JSON.parse('[-1,1,-1,1]');
-    var R_DR = JSON.parse('[-1,1,0,0]');
-    var R_DC = JSON.parse('[0,0,-1,1]');
-    var K_DR = JSON.parse('[-1,-1,-1,0,0,1,1,1]');
-    var K_DC = JSON.parse('[-1,0,1,-1,1,-1,0,1]');
+    var N_DR = [-2,-2,-1,-1,1,1,2,2];
+    var N_DC = [-1,1,-2,2,-2,2,-1,1];
+    var B_DR = [-1,-1,1,1];
+    var B_DC = [-1,1,-1,1];
+    var R_DR = [-1,1,0,0];
+    var R_DC = [0,0,-1,1];
+    var K_DR = [-1,-1,-1,0,0,1,1,1];
+    var K_DC = [-1,0,1,-1,1,-1,0,1];
 
     var epSquare = null;
     var hasMoved = {
@@ -74,7 +90,10 @@
         boardHistory.push(JSON.stringify({
             bd: bd,
             hasMoved: hasMoved,
-            epSquare: epSquare
+            epSquare: epSquare,
+            moveHistory: moveHistory,
+            lastMove: lastMove,
+            halfMoves: halfMoves
         }));
     }
     saveState();
@@ -84,542 +103,701 @@
         return isWhiteMap[p] ? 'W' : 'B';
     }
 
-    function isSquareAttacked(kr, kc, byColor, b) {
-        var isByWhite = (byColor === 'W');
-        var pAtt = isByWhite ? 'P' : 'p';
-        var nAtt = isByWhite ? 'N' : 'n';
-        var bAtt = isByWhite ? 'B' : 'b';
-        var rAtt = isByWhite ? 'R' : 'r';
-        var qAtt = isByWhite ? 'Q' : 'q';
-        var kAtt = isByWhite ? 'K' : 'k';
-        var zero = 0, one = 1, four = 4, seven = 7, eight = 8;
-
-        var pRow = isByWhite ? kr + one : kr - one;
-        if (pRow >= zero && pRow < eight) {
-            if (kc > zero && b[pRow][kc - one] === pAtt) return true;
-            if (kc < seven && b[pRow][kc + one] === pAtt) return true;
+    function updateUndoVisibility() {
+        var diff = document.getElementById('diff').value;
+        var undoBtn = document.getElementById('undoBtn');
+        if (undoBtn) {
+            undoBtn.style.display = (diff === 'extra') ? 'none' : 'block';
         }
-
-        for (var i = 0; i < eight; i++) {
-            var nr = kr + N_DR[i], nc = kc + N_DC[i];
-            if (nr >= zero && nr < eight && nc >= zero && nc < eight && b[nr][nc] === nAtt) return true;
-        }
-
-        for (var i = 0; i < eight; i++) {
-            var nr = kr + K_DR[i], nc = kc + K_DC[i];
-            if (nr >= zero && nr < eight && nc >= zero && nc < eight && b[nr][nc] === kAtt) return true;
-        }
-
-        for (var i = 0; i < four; i++) {
-            var dr = R_DR[i], dc = R_DC[i];
-            var nr = kr + dr, nc = kc + dc;
-            while (nr >= zero && nr < eight && nc >= zero && nc < eight) {
-                var sq = b[nr][nc];
-                if (sq !== '') {
-                    if (sq === rAtt || sq === qAtt) return true;
-                    break;
-                }
-                nr += dr; nc += dc;
-            }
-        }
-
-        for (var i = 0; i < four; i++) {
-            var dr = B_DR[i], dc = B_DC[i];
-            var nr = kr + dr, nc = kc + dc;
-            while (nr >= zero && nr < eight && nc >= zero && nc < eight) {
-                var sq = b[nr][nc];
-                if (sq !== '') {
-                    if (sq === bAtt || sq === qAtt) return true;
-                    break;
-                }
-                nr += dr; nc += dc;
-            }
-        }
-        return false;
     }
 
-    function check(cl, b, kPos) {
-        var targetK = cl === 'W' ? 'K' : 'k';
-        var kr = -1, kc = -1;
-        if (kPos) {
-            kr = kPos.r; kc = kPos.c;
-        } else {
+    function buildSANPrefix(fr, fc, tr, tc, moveObj) {
+        var piece = bd[fr][fc];
+        var upper = piece.toUpperCase();
+        var fileChars = 'abcdefgh';
+        var toSq = fileChars[tc] + (8 - tr);
+
+        if (upper === 'K' && Math.abs(tc - fc) === 2) {
+            return tc === 6 ? 'O-O' : 'O-O-O';
+        }
+
+        var isCapture = (bd[tr][tc] !== '' || (moveObj && moveObj.isENPassant));
+        if (upper === 'P') {
+            return (isCapture ? fileChars[fc] + 'x' : '') + toSq;
+        }
+
+        var sameFile = false, sameRank = false, ambig = false;
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                if ((r !== fr || c !== fc) && bd[r][c] === piece) {
+                    var leg = getLegal(r, c, bd, false, null);
+                    for (var i = 0; i < leg.length; i++) {
+                        if (leg[i].r === tr && leg[i].c === tc) {
+                            ambig = true;
+                            if (c === fc) sameFile = true;
+                            if (r === fr) sameRank = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        var disambig = '';
+        if (ambig) {
+            if (!sameFile) disambig = fileChars[fc];
+            else if (!sameRank) disambig = '' + (8 - fr);
+            else disambig = fileChars[fc] + (8 - fr);
+        }
+
+        return upper + disambig + (isCapture ? 'x' : '') + toSq;
+    }
+
+    function finalizeSAN(sanBase, nextColor) {
+        var inCheck = check(nextColor, bd, null);
+        if (inCheck) {
+            var hasMoves = false;
             for (var r = 0; r < 8; r++) {
                 for (var c = 0; c < 8; c++) {
-                    if (b[r][c] === targetK) { kr = r; kc = c; break; }
+                    if (bd[r][c] && getColor(bd[r][c]) === nextColor && getLegal(r, c, bd, false, null).length > 0) {
+                        hasMoves = true; break;
+                    }
                 }
-                if (kr !== -1) break;
+                if (hasMoves) break;
             }
+            sanBase += hasMoves ? '+' : '#';
         }
-        if (kr === -1) return false;
-        return isSquareAttacked(kr, kc, cl === 'W' ? 'B' : 'W', b);
+        moveHistory.push(sanBase);
+        renderMoveList();
     }
 
-    function getPseudo(r, c, b, checkCastlingSafe, inSim) {
-        var p = b[r][c];
-        var isW = !!isWhiteMap[p];
-        var cl = isW ? 'W' : 'B';
-        var enemyMap = isW ? isBlackMap : isWhiteMap;
-        var m = [];
-        var zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5, six = 6, seven = 7, eight = 8;
-
-        if (p === 'P' || p === 'p') {
-            var d = isW ? -1 : 1, s = isW ? six : one;
-            var r1 = r + d;
-            if (r1 >= zero && r1 < eight) {
-                if (b[r1][c] === '') {
-                    m.push({ r: r1, c: c });
-                    if (r === s && b[r + two * d][c] === '') m.push({ r: r + two * d, c: c, isDouble: true });
-                }
-                if (c > zero) {
-                    if (enemyMap[b[r1][c - one]]) m.push({ r: r1, c: c - one });
-                    else if (!inSim && epSquare && epSquare.r === r1 && epSquare.c === c - one) m.push({ r: r1, c: c - one, isENPassant: true });
-                }
-                if (c < seven) {
-                    if (enemyMap[b[r1][c + one]]) m.push({ r: r1, c: c + one });
-                    else if (!inSim && epSquare && epSquare.r === r1 && epSquare.c === c + one) m.push({ r: r1, c: c + one, isENPassant: true });
-                }
-            }
-            return m;
+    function renderMoveList() {
+        var box = document.getElementById('pgnBox');
+        if (!box) return;
+        if (moveHistory.length === 0) {
+            box.innerText = 'Moves will appear here...';
+            return;
         }
-
-        if (p === 'N' || p === 'n') {
-            for (var i = 0; i < eight; i++) {
-                var nr = r + N_DR[i], nc = c + N_DC[i];
-                if (nr >= zero && nr < eight && nc >= zero && nc < eight) {
-                    var target = b[nr][nc];
-                    if (target === '' || enemyMap[target]) m.push({ r: nr, c: nc });
-                }
-            }
-            return m;
+        var out = [];
+        for (var i = 0; i < moveHistory.length; i += 2) {
+            var num = (i / 2 + 1) + '. ';
+            var wMove = moveHistory[i];
+            var bMove = moveHistory[i + 1] ? ' ' + moveHistory[i + 1] : '';
+            out.push(num + wMove + bMove);
         }
-
-        if (p === 'B' || p === 'b' || p === 'Q' || p === 'q') {
-            for (var i = 0; i < four; i++) {
-                var dr = B_DR[i], dc = B_DC[i];
-                var nr = r + dr, nc = c + dc;
-                while (nr >= zero && nr < eight && nc >= zero && nc < eight) {
-                    var target = b[nr][nc];
-                    if (target === '') {
-                        m.push({ r: nr, c: nc });
-                    } else {
-                        if (enemyMap[target]) m.push({ r: nr, c: nc });
-                        break;
-                    }
-                    nr += dr; nc += dc;
-                }
-            }
-        }
-
-        if (p === 'R' || p === 'r' || p === 'Q' || p === 'q') {
-            for (var i = 0; i < four; i++) {
-                var dr = R_DR[i], dc = R_DC[i];
-                var nr = r + dr, nc = c + dc;
-                while (nr >= zero && nr < eight && nc >= zero && nc < eight) {
-                    var target = b[nr][nc];
-                    if (target === '') {
-                        m.push({ r: nr, c: nc });
-                    } else {
-                        if (enemyMap[target]) m.push({ r: nr, c: nc });
-                        break;
-                    }
-                    nr += dr; nc += dc;
-                }
-            }
-        }
-
-        if (p === 'K' || p === 'k') {
-            for (var i = 0; i < eight; i++) {
-                var nr = r + K_DR[i], nc = c + K_DC[i];
-                if (nr >= zero && nr < eight && nc >= zero && nc < eight) {
-                    var target = b[nr][nc];
-                    if (target === '' || enemyMap[target]) m.push({ r: nr, c: nc });
-                }
-            }
-            if (!checkCastlingSafe && !inSim) {
-                var expectedRow = isW ? seven : zero;
-                var enemyCl = isW ? 'B' : 'W';
-                if (r === expectedRow && c === four && !hasMoved[cl + '_K'] && !isSquareAttacked(r, c, enemyCl, b)) {
-                    var rookChar = isW ? 'R' : 'r';
-                    if (!hasMoved[cl + '_R8'] && b[r][five] === '' && b[r][six] === '' && b[r][seven] === rookChar) {
-                        if (!isSquareAttacked(r, five, enemyCl, b) && !isSquareAttacked(r, six, enemyCl, b)) {
-                            m.push({ r: r, c: six, isCastle: true });
-                        }
-                    }
-                    if (!hasMoved[cl + '_R1'] && b[r][one] === '' && b[r][two] === '' && b[r][three] === '' && b[r][zero] === rookChar) {
-                        if (!isSquareAttacked(r, two, enemyCl, b) && !isSquareAttacked(r, three, enemyCl, b)) {
-                            m.push({ r: r, c: two, isCastle: true });
-                        }
-                    }
-                }
-            }
-        }
-        return m;
+        box.innerText = out.join('  ');
+        box.scrollTop = box.scrollHeight;
     }
 
-    function getLegal(r, c, b, inSim, kPos) {
-        var origPiece = b[r][c];
-        var cl = isWhiteMap[origPiece] ? 'W' : 'B';
-        var isKing = (origPiece === 'K' || origPiece === 'k');
-        var pseudo = getPseudo(r, c, b, false, inSim);
-        var legal = [];
-
-        for (var i = 0; i < pseudo.length; i++) {
-            var m = pseudo[i];
-            var captured = b[m.r][m.c];
-            var epCaptured = '';
-
-            if (m.isENPassant) {
-                epCaptured = b[r][m.c];
-                b[r][m.c] = '';
-            }
-            b[m.r][m.c] = origPiece;
-            b[r][c] = '';
-
-            var activeKPos = isKing ? { r: m.r, c: m.c } : kPos;
-            if (!check(cl, b, activeKPos)) legal.push(m);
-
-            b[r][c] = origPiece;
-            b[m.r][m.c] = captured;
-            if (m.isENPassant) b[r][m.c] = epCaptured;
-        }
-        return legal;
-    }
-    function draw() {
-        var t = document.getElementById('tbl');
-        if (!t) return;
-        t.innerHTML = '';
+    function getFEN() {
+        var rows = [];
         for (var r = 0; r < 8; r++) {
-            var tr = document.createElement('tr');
+            var rowStr = '', empty = 0;
             for (var c = 0; c < 8; c++) {
-                var td = document.createElement('td');
-                td.style.width = '45px'; td.style.height = '45px'; td.style.textAlign = 'center'; td.style.fontSize = '30px'; td.style.cursor = 'pointer';
-                td.style.fontFamily = 'sans-serif';
-                td.style.position = 'relative';
-                td.style.backgroundColor = (r + c) % 2 === 0 ? '#f0d9b5' : '#b58863';
-
-                if (bd[r][c]) {
-                    td.innerText = syms[bd[r][c]];
-                    if (isWhiteMap[bd[r][c]]) {
-                        td.style.color = '#ffffff';
-                        td.style.textShadow = '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000, 1px 0 0 #000, 0 -1px 0 #000, -1px 0 0 #000';
-                    } else {
-                        td.style.color = '#151515';
-                        td.style.textShadow = 'none';
-                    }
+                if (bd[r][c] === '') {
+                    empty++;
+                } else {
+                    if (empty > 0) { rowStr += empty; empty = 0; }
+                    rowStr += bd[r][c];
                 }
-
-                if (sel && sel.r === r && sel.c === c) td.style.backgroundColor = '#7fffd4';
-
-                for (var i = 0; i < moves.length; i++) {
-                    if (moves[i].r === r && moves[i].c === c) {
-                        var dot = document.createElement('div');
-                        dot.style.position = 'absolute';
-                        dot.style.top = '50%';
-                        dot.style.left = '50%';
-                        dot.style.transform = 'translate(-50%, -50%)';
-                        dot.style.borderRadius = '50%';
-                        dot.style.backgroundColor = 'rgba(0, 0, 0, 0.15)';
-
-                        if (bd[r][c]) {
-                            dot.style.width = '38px';
-                            dot.style.height = '38px';
-                            dot.style.border = '4px solid rgba(0, 0, 0, 0.15)';
-                            dot.style.backgroundColor = 'transparent';
-                        } else {
-                            dot.style.width = '12px';
-                            dot.style.height = '12px';
-                        }
-                        td.appendChild(dot);
-                    }
-                }
-
-                (function(row, col) { td.onclick = function() { clickSq(row, col); }; })(r, c);
-                tr.appendChild(td);
             }
-            t.appendChild(tr);
+            if (empty > 0) rowStr += empty;
+            rows.push(rowStr);
         }
-    }
-
-    function clickSq(r, c) {
-        var playerColor = document.getElementById('pColor').value;
-        if (turn !== playerColor) return;
-
-        var p = bd[r][c], isW = p && getColor(p) === playerColor;
-        if (sel === null) {
-            if (isW) { sel = { r: r, c: c }; moves = getLegal(r, c, bd, false, null); draw(); }
-        } else {
-            var m = moves.find(function(x) { return x.r === r && x.c === c; });
-            if (m) {
-                document.getElementById('pColor').disabled = true;
-                document.getElementById('diff').disabled = true;
-
-                if (m.isENPassant) bd[sel.r][c] = '';
-                bd[r][c] = bd[sel.r][sel.c];
-                bd[sel.r][sel.c] = '';
-
-                var zero = 0, two = 2, three = 3, five = 5, six = 6, seven = 7;
-                if ((bd[r][c] === 'P' && r === zero) || (bd[r][c] === 'p' && r === seven)) {
-                    window.pendingPromo = { row: r, col: c, color: playerColor };
-                    document.getElementById('promoModal').style.display = 'flex';
-                    sel = null; moves = []; draw();
-                    return;
-                }
-
-                if ((bd[r][c] === 'K' || bd[r][c] === 'k') && Math.abs(c - sel.c) === two) {
-                    if (c === six) {
-                        bd[r].splice(five, 1, bd[r][seven]);
-                        bd[r].splice(seven, 1, '');
-                    }
-                    if (c === two) {
-                        bd[r].splice(three, 1, bd[r][zero]);
-                        bd[r].splice(zero, 1, '');
-                    }
-                }
-
-                if (bd[r][c] === 'K') hasMoved['W_K'] = true;
-                if (bd[r][c] === 'R' && sel.r === seven && sel.c === zero) hasMoved['W_R1'] = true;
-                if (bd[r][c] === 'R' && sel.r === seven && sel.c === seven) hasMoved['W_R8'] = true;
-                if (bd[r][c] === 'k') hasMoved['B_K'] = true;
-                if (bd[r][c] === 'r' && sel.r === zero && sel.c === zero) hasMoved['B_R1'] = true;
-                if (bd[r][c] === 'r' && sel.r === zero && sel.c === seven) hasMoved['B_R8'] = true;
-
-                epSquare = m.isDouble ? { r: (sel.r + r) / two, c: c } : null;
-
-                saveState();
-                sel = null; moves = [];
-
-                var nextTurn = playerColor === 'W' ? 'B' : 'W';
-                if (endState(nextTurn)) return;
-                turn = nextTurn;
-
-                document.getElementById('msg').innerText = "Bot thinking...";
-                draw();
-                setTimeout(bot, 40);
-            } else {
-                sel = isW ? { r: r, c: c } : null;
-                moves = sel ? getLegal(r, c, bd, false, null) : [];
-                draw();
-            }
-        }
-    }
-    function bot() {
-        var diffSetting = document.getElementById('diff').value;
-        var maxDepth = diffSetting === "1600" ? 5 : (diffSetting === "1200" ? 3 : 2);
-        var maxQDepth = diffSetting === "1600" ? 4 : (diffSetting === "1200" ? 3 : 2);
-        var timeLimitMs = diffSetting === "1600" ? 450 : (diffSetting === "1200" ? 200 : 80);
-        var startTime = Date.now();
-        var timeUp = false;
-
-        var botColor = document.getElementById('pColor').value === 'W' ? 'B' : 'W';
-        var zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5, six = 6, seven = 7, eight = 8;
-
-        var pFlat = "0000000055500555000000000000000000000000000000005550055500000000".split("").map(Number);
-        var nFlat = JSON.parse("[-50,-40,-30,-30,-30,-30,-40,-50,-40,-20,0,5,5,0,-20,-40,-30,5,15,20,20,15,5,-30,-30,0,20,30,30,20,0,-30,-30,5,20,30,30,20,5,-30,-30,0,15,20,20,15,0,-30,-40,-20,0,0,0,0,-20,-40,-50,-40,-30,-30,-30,-30,-40,-50]");
-        var cFlat = JSON.parse("[-3,-2,-2,-2,-2,-2,-2,-3,-2,0,0,0,0,0,0,-2,-2,0,2,4,4,2,0,-2,-2,0,4,8,8,4,0,-2,-2,0,4,8,8,4,0,-2,-2,0,2,4,4,2,0,-2,-2,0,0,0,0,0,0,-2,-3,-2,-2,-2,-2,-2,-2,-3]");
-
-        var simBoard = JSON.parse(JSON.stringify(bd));
-        var wKing = { r: seven, c: four }, bKing = { r: zero, c: four };
-        for (var r = 0; r < eight; r++) {
-            for (var c = 0; c < eight; c++) {
-                if (simBoard[r][c] === 'K') { wKing.r = r; wKing.c = c; }
-                else if (simBoard[r][c] === 'k') { bKing.r = r; bKing.c = c; }
-            }
-        }
-
-        function evalBoard(b) {
-            var score = 0;
-            var wBishops = 0, bBishops = 0;
-            var wQueens = 0, bQueens = 0;
-            var wMaterial = 0, bMaterial = 0;
-            var wKingR = seven, wKingC = four, bKingR = zero, bKingC = four;
-
-            for (var r = 0; r < eight; r++) {
-                var row = b[r];
-                var r8 = r * eight;
-                for (var c = 0; c < eight; c++) {
-                    var p = row[c];
-                    if (p === '') continue;
-                    var idx = r8 + c;
-                    var val = vals[p];
-
-                    if (p === 'p') {
-                        bMaterial += 100;
-                        var pBonus = (c === three || c === four) && r === one ? -20 : pFlat[idx];
-                        val += pBonus + cFlat[idx] * three + (r - one) * seven;
-                        if (r > zero && ((c > zero && b[r - one][c - one] === 'p') || (c < seven && b[r - one][c + one] === 'p'))) val += 10;
-                    } else if (p === 'P') {
-                        wMaterial += 100;
-                        var pBonus = (c === three || c === four) && r === six ? -20 : pFlat[idx];
-                        val += pBonus + cFlat[idx] * three + (six - r) * seven;
-                        if (r < seven && ((c > zero && b[r + one][c - one] === 'P') || (c < seven && b[r + one][c + one] === 'P'))) val += 10;
-                    } else if (p === 'n') {
-                        bMaterial += 300;
-                        val += nFlat[idx] + cFlat[idx] * six;
-                        if (r === zero) val -= 10;
-                    } else if (p === 'N') {
-                        wMaterial += 300;
-                        val += nFlat[idx] + cFlat[idx] * six;
-                        if (r === seven) val -= 10;
-                    } else if (p === 'b') {
-                        bMaterial += 310;
-                        bBishops++;
-                        val += cFlat[idx] * 9;
-                        if (r === zero) val -= 10;
-                    } else if (p === 'B') {
-                        wMaterial += 310;
-                        wBishops++;
-                        val += cFlat[idx] * 9;
-                        if (r === seven) val -= 10;
-                    } else if (p === 'r') {
-                        bMaterial += 500;
-                        if (r === six) val += 25;
-                    } else if (p === 'R') {
-                        wMaterial += 500;
-                        if (r === one) val += 25;
-                    } else if (p === 'q') {
-                        bMaterial += 900;
-                        bQueens++;
-                        if (r !== zero && r < three) val -= 35;
-                    } else if (p === 'Q') {
-                        wMaterial += 900;
-                        wQueens++;
-                        if (r !== seven && r > four) val -= 35;
-                    } else if (p === 'k') {
-                        bKingR = r; bKingC = c;
-                    } else if (p === 'K') {
-                        wKingR = r; wKingC = c;
-                    }
-
-                    if (isBlackMap[p]) score += val;
-                    else score -= val;
-                }
-            }
-
-            if (bBishops >= two) score += 35;
-            if (wBishops >= two) score -= 35;
-
-            var isEndgame = (wQueens === zero && bQueens === zero) || (wMaterial <= 1300 && bMaterial <= 1300);
-            if (isEndgame) {
-                score += cFlat[bKingR * eight + bKingC] * 10;
-                score -= cFlat[wKingR * eight + wKingC] * 10;
-
-                var matDiff = bMaterial - wMaterial;
-                var kingDist = Math.abs(bKingR - wKingR) + Math.abs(bKingC - wKingC);
-                if (matDiff >= 300) {
-                    var wEdgeDist = Math.abs(wKingR - 3.5) + Math.abs(wKingC - 3.5);
-                    score += Math.round(wEdgeDist * 14) + (14 - kingDist) * six;
-                } else if (matDiff <= -300) {
-                    var bEdgeDist = Math.abs(bKingR - 3.5) + Math.abs(bKingC - 3.5);
-                    score -= Math.round(bEdgeDist * 14) + (14 - kingDist) * six;
-                }
-            } else {
-                if (bKingR === zero && (bKingC === six || bKingC === two || bKingC === one || bKingC === seven)) score += 50;
-                else if (bKingR === zero && bKingC === four) score += 10;
-                else score -= 40;
-
-                if (wKingR === seven && (wKingC === six || wKingC === two || wKingC === one || wKingC === seven)) score -= 50;
-                else if (wKingR === seven && wKingC === four) score -= 10;
-                else score += 40;
-            }
-
-            return score;
-        }
-
-        function getFastMoves(cl, b, inSim, capturesOnly) {
-            var list = [];
-            var colorMap = cl === 'W' ? isWhiteMap : isBlackMap;
-            for (var r = 0; r < eight; r++) {
-                var row = b[r];
-                for (var c = 0; c < eight; c++) {
-                    var piece = row[c];
-                    if (piece !== '' && colorMap[piece]) {
-                        var pseudo = getPseudo(r, c, b, true, inSim);
-                        for (var i = 0; i < pseudo.length; i++) {
-                            var to = pseudo[i];
-                            var target = b[to.r][to.c];
-                            if (capturesOnly && target === '' && !to.isENPassant) continue;
-                            var mvvScore = target !== '' ? (vals[target] * 10 - vals[piece]) : 0;
-                            list.push({ fr: r, fc: c, to: to, order: mvvScore });
-                        }
-                    }
-                }
-            }
-            return list.sort(function(a, b) { return b.order - a.order; });
-        }
-
-        function makeSimMove(b, m) {
-            var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
-            var origPiece = b[fr][fc];
-            var captured = b[tr][tc];
-            var epCaptured = '';
-
-            var placedPiece = origPiece;
-            if (tr === seven && origPiece === 'p') placedPiece = 'q';
-            else if (tr === zero && origPiece === 'P') placedPiece = 'Q';
-
-            b[tr][tc] = placedPiece;
-            b[fr][fc] = '';
-
-            if (origPiece === 'K') { wKing.r = tr; wKing.c = tc; }
-            else if (origPiece === 'k') { bKing.r = tr; bKing.c = tc; }
-
-            if (m.to.isENPassant) {
-                epCaptured = b[fr][tc];
-                b[fr][tc] = '';
-            }
-            if (m.to.isCastle) {
-                if (tc === six) {
-                    b[tr].splice(five, 1, b[tr][seven]);
-                    b[tr].splice(seven, 1, '');
-                } else if (tc === two) {
-                    b[tr].splice(three, 1, b[tr][zero]);
-                    b[tr].splice(zero, 1, '');
-                }
-            }
-            return { origPiece: origPiece, captured: captured, epCaptured: epCaptured };
-        }
-
-        function unmakeSimMove(b, m, u) {
-            var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
-            var origPiece = u.origPiece;
-            b[fr][fc] = origPiece;
-            b[tr][tc] = u.captured;
-
-            if (origPiece === 'K') { wKing.r = fr; wKing.c = fc; }
-            else if (origPiece === 'k') { bKing.r = fr; bKing.c = fc; }
-
-            if (m.to.isENPassant) b[fr][tc] = u.epCaptured;
-            if (m.to.isCastle) {
-                if (tc === six) {
-                    b[tr].splice(seven, 1, b[tr][five]);
-                    b[tr].splice(five, 1, '');
-                } else if (tc === two) {
-                    b[tr].splice(zero, 1, b[tr][three]);
-                    b[tr].splice(three, 1, '');
-                }
-            }
-        }
-
-        var nodes = 0;
-        function quiesce(b, alpha, beta, isMax, qDepth) {
-            if ((++nodes & 63) === 0 && Date.now() - startTime > timeLimitMs) {
-                timeUp = true;
-                return 0;
-            }
-            var standPat = evalBoard(b);
-            if (qDepth === 0) return standPat;
-
-            if (isMax) {
-                if (standPat >= beta) return beta;
-                if (standPat + 950 < alpha) return alpha;
-                if (standPat > alpha) alpha = standPat;
-            } else {
-                if (standPat <= alpha) return alpha;
-                if (standPat - 950 > beta) return beta;
-                if (standPat < beta) beta = standPat;
-            }
-
+        var active = (turn === 'B') ? 'b' : 'w';
+        var castling = '';
+        if (!hasMoved['W_K'] && !hasMoved['W_R8']) castling += 'K';
+        if (!hasMoved['W_K'] && !hasMoved['W_R1']) castling += 'Q';
+        if (!hasMoved['B_K'] && !hasMoved['B_R8']) castling += 'k';
+        if (!hasMoved['B_K'] && !hasMoved['B_R1']) castling += 'q';
+if (castling === '') castling = '-';
+var ep = epSquare ? ('abcdefgh'[epSquare.c] + (8 - epSquare.r)) : '-';
+var fullMove = Math.floor(moveHistory.length / 2) + 1;
+return rows.join('/') + ' ' + active + ' ' + castling + ' ' + ep + ' ' + halfMoves + ' ' + fullMove;
+}
+function getPGN() {
+var pColor = document.getElementById('pColor').value;
+var diffLabel = document.getElementById('diff').options[document.getElementById('diff').selectedIndex].text;
+var whiteName = pColor === 'W' ? 'Club Player' : 'Club Bot (' + diffLabel + ')';
+var blackName = pColor === 'B' ? 'Club Player' : 'Club Bot (' + diffLabel + ')';
+var headers = [
+'[Event "Chess Club Practice"]',
+'[White "' + whiteName + '"]',
+'[Black "' + blackName + '"]',
+'[Result "' + gameResult + '"]'
+];
+var movesTxt = [];
+for (var i = 0; i < moveHistory.length; i += 2) {
+var line = (i / 2 + 1) + '. ' + moveHistory[i];
+if (moveHistory[i + 1]) line += ' ' + moveHistory[i + 1];
+movesTxt.push(line);
+}
+return headers.join('\n') + '\n\n' + movesTxt.join(' ') + (movesTxt.length ? ' ' : '') + gameResult;
+}
+function copyExport(type) {
+var text = (type === 'fen') ? getFEN() : getPGN();
+var btn = document.getElementById(type === 'fen' ? 'copyFenBtn' : 'copyPgnBtn');
+var origText = btn.innerText;
+if (navigator.clipboard && navigator.clipboard.writeText) {
+navigator.clipboard.writeText(text).then(function() {
+btn.innerText = 'Copied!';
+setTimeout(function() { btn.innerText = origText; }, 1400);
+});
+} else {
+var ta = document.createElement('textarea');
+ta.value = text;
+document.body.appendChild(ta);
+ta.select();
+document.execCommand('copy');
+document.body.removeChild(ta);
+btn.innerText = 'Copied!';
+setTimeout(function() { btn.innerText = origText; }, 1400);
+}
+}
+function isInsufficientMaterial() {
+var wMinors = [], bMinors = [];
+for (var r = 0; r < 8; r++) {
+for (var c = 0; c < 8; c++) {
+var p = bd[r][c];
+if (!p || p === 'K' || p === 'k') continue;
+if (p === 'P' || p === 'p' || p === 'R' || p === 'r' || p === 'Q' || p === 'q') return false;
+var sqColor = (r + c) % 2;
+if (p === 'B' || p === 'N') wMinors.push({ type: p, color: sqColor });
+if (p === 'b' || p === 'n') bMinors.push({ type: p, color: sqColor });
+}
+}
+if (wMinors.length === 0 && bMinors.length === 0) return true;
+if (wMinors.length + bMinors.length === 1) return true;
+if (wMinors.length === 1 && bMinors.length === 1 && wMinors[0].type === 'B' && bMinors[0].type === 'b') {
+return wMinors[0].color === bMinors[0].color;
+}
+return false;
+}
+function isSquareAttacked(kr, kc, byColor, b) {
+var isByWhite = (byColor === 'W');
+var pAtt = isByWhite ? 'P' : 'p';
+var nAtt = isByWhite ? 'N' : 'n';
+var bAtt = isByWhite ? 'B' : 'b';
+var rAtt = isByWhite ? 'R' : 'r';
+var qAtt = isByWhite ? 'Q' : 'q';
+var kAtt = isByWhite ? 'K' : 'k';
+var zero = 0, one = 1, four = 4, seven = 7, eight = 8;
+var pRow = isByWhite ? kr + one : kr - one;
+if (pRow >= zero && pRow < eight) {
+if (kc > zero && b[pRow][kc - one] === pAtt) return true;
+if (kc < seven && b[pRow][kc + one] === pAtt) return true;
+}
+for (var i = 0; i < eight; i++) {
+var nr = kr + N_DR[i], nc = kc + N_DC[i];
+if (nr >= zero && nr < eight && nc >= zero && nc < eight && b[nr][nc] === nAtt) return true;
+}
+for (var i = 0; i < eight; i++) {
+var nr = kr + K_DR[i], nc = kc + K_DC[i];
+if (nr >= zero && nr < eight && nc >= zero && nc < eight && b[nr][nc] === kAtt) return true;
+}
+for (var i = 0; i < four; i++) {
+var dr = R_DR[i], dc = R_DC[i];
+var nr = kr + dr, nc = kc + dc;
+while (nr >= zero && nr < eight && nc >= zero && nc < eight) {
+var sq = b[nr][nc];
+if (sq !== '') {
+if (sq === rAtt || sq === qAtt) return true;
+break;
+}
+nr += dr; nc += dc;
+}
+}
+for (var i = 0; i < four; i++) {
+var dr = B_DR[i], dc = B_DC[i];
+var nr = kr + dr, nc = kc + dc;
+while (nr >= zero && nr < eight && nc >= zero && nc < eight) {
+var sq = b[nr][nc];
+if (sq !== '') {
+if (sq === bAtt || sq === qAtt) return true;
+break;
+}
+nr += dr; nc += dc;
+}
+}
+return false;
+}
+function check(cl, b, kPos) {
+var targetK = cl === 'W' ? 'K' : 'k';
+var kr = -1, kc = -1;
+if (kPos) {
+kr = kPos.r; kc = kPos.c;
+} else {
+for (var r = 0; r < 8; r++) {
+for (var c = 0; c < 8; c++) {
+if (b[r][c] === targetK) { kr = r; kc = c; break; }
+}
+if (kr !== -1) break;
+}
+}
+if (kr === -1) return false;
+return isSquareAttacked(kr, kc, cl === 'W' ? 'B' : 'W', b);
+}
+function getPseudo(r, c, b, checkCastlingSafe, inSim) {
+var p = b[r][c];
+var isW = !!isWhiteMap[p];
+var cl = isW ? 'W' : 'B';
+var enemyMap = isW ? isBlackMap : isWhiteMap;
+var m = [];
+var zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5, six = 6, seven = 7, eight = 8;
+if (p === 'P' || p === 'p') {
+var d = isW ? -1 : 1, s = isW ? six : one;
+var r1 = r + d;
+if (r1 >= zero && r1 < eight) {
+if (b[r1][c] === '') {
+m.push({ r: r1, c: c });
+if (r === s && b[r + two * d][c] === '') m.push({ r: r + two * d, c: c, isDouble: true });
+}
+if (c > zero) {
+if (enemyMap[b[r1][c - one]]) m.push({ r: r1, c: c - one });
+else if (!inSim && epSquare && epSquare.r === r1 && epSquare.c === c - one) m.push({ r: r1, c: c - one, isENPassant: true });
+}
+if (c < seven) {
+if (enemyMap[b[r1][c + one]]) m.push({ r: r1, c: c + one });
+else if (!inSim && epSquare && epSquare.r === r1 && epSquare.c === c + one) m.push({ r: r1, c: c + one, isENPassant: true });
+}
+}
+return m;
+}
+if (p === 'N' || p === 'n') {
+for (var i = 0; i < eight; i++) {
+var nr = r + N_DR[i], nc = c + N_DC[i];
+if (nr >= zero && nr < eight && nc >= zero && nc < eight) {
+var target = b[nr][nc];
+if (target === '' || enemyMap[target]) m.push({ r: nr, c: nc });
+}
+}
+return m;
+}
+if (p === 'B' || p === 'b' || p === 'Q' || p === 'q') {
+for (var i = 0; i < four; i++) {
+var dr = B_DR[i], dc = B_DC[i];
+var nr = r + dr, nc = c + dc;
+while (nr >= zero && nr < eight && nc >= zero && nc < eight) {
+var target = b[nr][nc];
+if (target === '') {
+m.push({ r: nr, c: nc });
+} else {
+if (enemyMap[target]) m.push({ r: nr, c: nc });
+break;
+}
+nr += dr; nc += dc;
+}
+}
+}
+if (p === 'R' || p === 'r' || p === 'Q' || p === 'q') {
+for (var i = 0; i < four; i++) {
+var dr = R_DR[i], dc = R_DC[i];
+var nr = r + dr, nc = c + dc;
+while (nr >= zero && nr < eight && nc >= zero && nc < eight) {
+var target = b[nr][nc];
+if (target === '') {
+m.push({ r: nr, c: nc });
+} else {
+if (enemyMap[target]) m.push({ r: nr, c: nc });
+break;
+}
+nr += dr; nc += dc;
+}
+}
+}
+if (p === 'K' || p === 'k') {
+for (var i = 0; i < eight; i++) {
+var nr = r + K_DR[i], nc = c + K_DC[i];
+if (nr >= zero && nr < eight && nc >= zero && nc < eight) {
+var target = b[nr][nc];
+if (target === '' || enemyMap[target]) m.push({ r: nr, c: nc });
+}
+}
+if (!checkCastlingSafe && !inSim) {
+var expectedRow = isW ? seven : zero;
+var enemyCl = isW ? 'B' : 'W';
+if (r === expectedRow && c === four && !hasMoved[cl + '_K'] && !isSquareAttacked(r, c, enemyCl, b)) {
+var rookChar = isW ? 'R' : 'r';
+if (!hasMoved[cl + '_R8'] && b[r][five] === '' && b[r][six] === '' && b[r][seven] === rookChar) {
+if (!isSquareAttacked(r, five, enemyCl, b) && !isSquareAttacked(r, six, enemyCl, b)) {
+m.push({ r: r, c: six, isCastle: true });
+}
+}
+if (!hasMoved[cl + '_R1'] && b[r][one] === '' && b[r][two] === '' && b[r][three] === '' && b[r][zero] === rookChar) {
+if (!isSquareAttacked(r, two, enemyCl, b) && !isSquareAttacked(r, three, enemyCl, b)) {
+m.push({ r: r, c: two, isCastle: true });
+}
+}
+}
+}
+}
+return m;
+}
+function getLegal(r, c, b, inSim, kPos) {
+var origPiece = b[r][c];
+var cl = isWhiteMap[origPiece] ? 'W' : 'B';
+var isKing = (origPiece === 'K' || origPiece === 'k');
+var pseudo = getPseudo(r, c, b, false, inSim);
+var legal = [];
+for (var i = 0; i < pseudo.length; i++) {
+var m = pseudo[i];
+var captured = b[m.r][m.c];
+var epCaptured = '';
+if (m.isENPassant) {
+epCaptured = b[r][m.c];
+b[r][m.c] = '';
+}
+b[m.r][m.c] = origPiece;
+b[r][c] = '';
+var activeKPos = isKing ? { r: m.r, c: m.c } : kPos;
+if (!check(cl, b, activeKPos)) legal.push(m);
+b[r][c] = origPiece;
+b[m.r][m.c] = captured;
+if (m.isENPassant) b[r][m.c] = epCaptured;
+}
+return legal;
+}
+function draw() {
+var t = document.getElementById('tbl');
+if (!t) return;
+t.innerHTML = '';
+var flip = document.getElementById('pColor').value === 'B';
+var files = 'abcdefgh';
+for (var rIdx = 0; rIdx < 8; rIdx++) {
+var r = flip ? 7 - rIdx : rIdx;
+var tr = document.createElement('tr');
+for (var cIdx = 0; cIdx < 8; cIdx++) {
+var c = flip ? 7 - cIdx : cIdx;
+var td = document.createElement('td');
+var isLight = (r + c) % 2 === 0;
+td.style.width = '45px'; td.style.height = '45px'; td.style.textAlign = 'center'; td.style.fontSize = '30px'; td.style.cursor = 'pointer';
+td.style.fontFamily = 'sans-serif';
+td.style.position = 'relative';
+td.style.backgroundColor = isLight ? '#f0d9b5' : '#b58863';
+// Last-move highlight
+if (lastMove && ((lastMove.fr === r && lastMove.fc === c) || (lastMove.tr === r && lastMove.tc === c))) {
+td.style.backgroundColor = isLight ? '#f6f669' : '#baca2b';
+}
+// Selected square highlight
+if (sel && sel.r === r && sel.c === c) td.style.backgroundColor = '#7fffd4';
+// Rank coordinate (left edge)
+if (cIdx === 0) {
+var rankLbl = document.createElement('span');
+rankLbl.innerText = 8 - r;
+rankLbl.style.position = 'absolute';
+rankLbl.style.top = '2px';
+rankLbl.style.left = '3px';
+rankLbl.style.fontSize = '10px';
+rankLbl.style.fontWeight = 'bold';
+rankLbl.style.color = isLight ? '#b58863' : '#f0d9b5';
+rankLbl.style.pointerEvents = 'none';
+td.appendChild(rankLbl);
+}
+// File coordinate (bottom edge)
+if (rIdx === 7) {
+var fileLbl = document.createElement('span');
+fileLbl.innerText = files[c];
+fileLbl.style.position = 'absolute';
+fileLbl.style.bottom = '1px';
+fileLbl.style.right = '3px';
+fileLbl.style.fontSize = '10px';
+fileLbl.style.fontWeight = 'bold';
+fileLbl.style.color = isLight ? '#b58863' : '#f0d9b5';
+fileLbl.style.pointerEvents = 'none';
+td.appendChild(fileLbl);
+}
+if (bd[r][c]) {
+var pSpan = document.createElement('span');
+pSpan.innerText = syms[bd[r][c]];
+if (isWhiteMap[bd[r][c]]) {
+pSpan.style.color = '#ffffff';
+pSpan.style.textShadow = '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000, 1px 0 0 #000, 0 -1px 0 #000, -1px 0 0 #000';
+} else {
+pSpan.style.color = '#151515';
+pSpan.style.textShadow = 'none';
+}
+td.appendChild(pSpan);
+}
+for (var i = 0; i < moves.length; i++) {
+if (moves[i].r === r && moves[i].c === c) {
+var dot = document.createElement('div');
+dot.style.position = 'absolute';
+dot.style.top = '50%';
+dot.style.left = '50%';
+dot.style.transform = 'translate(-50%, -50%)';
+dot.style.borderRadius = '50%';
+dot.style.backgroundColor = 'rgba(0, 0, 0, 0.15)';
+dot.style.pointerEvents = 'none';
+if (bd[r][c]) {
+dot.style.width = '38px';
+dot.style.height = '38px';
+dot.style.border = '4px solid rgba(0, 0, 0, 0.15)';
+dot.style.backgroundColor = 'transparent';
+} else {
+dot.style.width = '12px';
+dot.style.height = '12px';
+}
+td.appendChild(dot);
+}
+}
+(function(row, col) { td.onclick = function() { clickSq(row, col); }; })(r, c);
+tr.appendChild(td);
+}
+t.appendChild(tr);
+}
+}
+function clickSq(r, c) {
+var playerColor = document.getElementById('pColor').value;
+if (turn !== playerColor) return;
+var p = bd[r][c], isW = p && getColor(p) === playerColor;
+if (sel === null) {
+if (isW) { sel = { r: r, c: c }; moves = getLegal(r, c, bd, false, null); draw(); }
+} else {
+var m = moves.find(function(x) { return x.r === r && x.c === c; });
+if (m) {
+document.getElementById('pColor').disabled = true;
+document.getElementById('diff').disabled = true;
+var movingPiece = bd[sel.r][sel.c];
+var isCapture = (bd[r][c] !== '' || m.isENPassant);
+var sanPrefix = buildSANPrefix(sel.r, sel.c, r, c, m);
+if (m.isENPassant) bd[sel.r][c] = '';
+bd[r][c] = movingPiece;
+bd[sel.r][sel.c] = '';
+lastMove = { fr: sel.r, fc: sel.c, tr: r, tc: c };
+halfMoves = (movingPiece === 'P' || movingPiece === 'p' || isCapture) ? 0 : halfMoves + 1;
+var zero = 0, two = 2, three = 3, five = 5, six = 6, seven = 7;
+if ((bd[r][c] === 'P' && r === zero) || (bd[r][c] === 'p' && r === seven)) {
+window.pendingPromo = { row: r, col: c, color: playerColor, sanPrefix: sanPrefix };
+document.getElementById('promoModal').style.display = 'flex';
+sel = null; moves = []; draw();
+return;
+}
+if ((bd[r][c] === 'K' || bd[r][c] === 'k') && Math.abs(c - sel.c) === two) {
+if (c === six) {
+bd[r].splice(five, 1, bd[r][seven]);
+bd[r].splice(seven, 1, '');
+}
+if (c === two) {
+bd[r].splice(three, 1, bd[r][zero]);
+bd[r].splice(zero, 1, '');
+}
+}
+if (bd[r][c] === 'K') hasMoved['W_K'] = true;
+if (bd[r][c] === 'R' && sel.r === seven && sel.c === zero) hasMoved['W_R1'] = true;
+if (bd[r][c] === 'R' && sel.r === seven && sel.c === seven) hasMoved['W_R8'] = true;
+if (bd[r][c] === 'k') hasMoved['B_K'] = true;
+if (bd[r][c] === 'r' && sel.r === zero && sel.c === zero) hasMoved['B_R1'] = true;
+if (bd[r][c] === 'r' && sel.r === zero && sel.c === seven) hasMoved['B_R8'] = true;
+epSquare = m.isDouble ? { r: (sel.r + r) / two, c: c } : null;
+var nextTurn = playerColor === 'W' ? 'B' : 'W';
+finalizeSAN(sanPrefix, nextTurn);
+saveState();
+sel = null; moves = [];
+if (endState(nextTurn)) { draw(); return; }
+turn = nextTurn;
+document.getElementById('msg').innerText = "Bot thinking...";
+draw();
+setTimeout(bot, 40);
+} else {
+sel = isW ? { r: r, c: c } : null;
+moves = sel ? getLegal(r, c, bd, false, null) : [];
+draw();
+}
+}
+}
+function bot() {
+var diffSetting = document.getElementById('diff').value;
+var isHard = (diffSetting === "1600" || diffSetting === "extra");
+var maxDepth = isHard ? 5 : (diffSetting === "1200" ? 3 : 2);
+var maxQDepth = isHard ? 4 : (diffSetting === "1200" ? 3 : 2);
+var timeLimitMs = isHard ? 450 : (diffSetting === "1200" ? 200 : 80);
+var startTime = Date.now();
+var timeUp = false;
+var botColor = document.getElementById('pColor').value === 'W' ? 'B' : 'W';
+var zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5, six = 6, seven = 7, eight = 8;
+var pFlat = "0000000055500555000000000000000000000000000000005550055500000000".split("").map(Number);
+var nFlat = [-50,-40,-30,-30,-30,-30,-40,-50,-40,-20,0,5,5,0,-20,-40,-30,5,15,20,20,15,5,-30,-30,0,20,30,30,20,0,-30,-30,5,20,30,30,20,5,-30,-30,0,15,20,20,15,0,-30,-40,-20,0,0,0,0,-20,-40,-50,-40,-30,-30,-30,-30,-40,-50];
+var cFlat = [-3,-2,-2,-2,-2,-2,-2,-3,-2,0,0,0,0,0,0,-2,-2,0,2,4,4,2,0,-2,-2,0,4,8,8,4,0,-2,-2,0,4,8,8,4,0,-2,-2,0,2,4,4,2,0,-2,-2,0,0,0,0,0,0,-2,-3,-2,-2,-2,-2,-2,-2,-3];
+var simBoard = JSON.parse(JSON.stringify(bd));
+var wKing = { r: seven, c: four }, bKing = { r: zero, c: four };
+for (var r = 0; r < eight; r++) {
+for (var c = 0; c < eight; c++) {
+if (simBoard[r][c] === 'K') { wKing.r = r; wKing.c = c; }
+else if (simBoard[r][c] === 'k') { bKing.r = r; bKing.c = c; }
+}
+}
+function evalBoard(b) {
+var score = 0;
+var wBishops = 0, bBishops = 0;
+var wQueens = 0, bQueens = 0;
+var wMaterial = 0, bMaterial = 0;
+var wKingR = seven, wKingC = four, bKingR = zero, bKingC = four;
+for (var r = 0; r < eight; r++) {
+var row = b[r];
+var r8 = r * eight;
+for (var c = 0; c < eight; c++) {
+var p = row[c];
+if (p === '') continue;
+var idx = r8 + c;
+var val = vals[p];
+if (p === 'p') {
+bMaterial += 100;
+var pBonus = (c === three || c === four) && r === one ? -20 : pFlat[idx];
+val += pBonus + cFlat[idx] * three + (r - one) * seven;
+if (r > zero && ((c > zero && b[r - one][c - one] === 'p') || (c < seven && b[r - one][c + one] === 'p'))) val += 10;
+} else if (p === 'P') {
+wMaterial += 100;
+var pBonus = (c === three || c === four) && r === six ? -20 : pFlat[idx];
+val += pBonus + cFlat[idx] * three + (six - r) * seven;
+if (r < seven && ((c > zero && b[r + one][c - one] === 'P') || (c < seven && b[r + one][c + one] === 'P'))) val += 10;
+} else if (p === 'n') {
+bMaterial += 300;
+val += nFlat[idx] + cFlat[idx] * six;
+if (r === zero) val -= 10;
+} else if (p === 'N') {
+wMaterial += 300;
+val += nFlat[idx] + cFlat[idx] * six;
+if (r === seven) val -= 10;
+} else if (p === 'b') {
+bMaterial += 310;
+bBishops++;
+val += cFlat[idx] * 9;
+if (r === zero) val -= 10;
+} else if (p === 'B') {
+wMaterial += 310;
+wBishops++;
+val += cFlat[idx] * 9;
+if (r === seven) val -= 10;
+} else if (p === 'r') {
+bMaterial += 500;
+if (r === six) val += 25;
+} else if (p === 'R') {
+wMaterial += 500;
+if (r === one) val += 25;
+} else if (p === 'q') {
+bMaterial += 900;
+bQueens++;
+if (r !== zero && r < three) val -= 35;
+} else if (p === 'Q') {
+wMaterial += 900;
+wQueens++;
+if (r !== seven && r > four) val -= 35;
+} else if (p === 'k') {
+bKingR = r; bKingC = c;
+} else if (p === 'K') {
+wKingR = r; wKingC = c;
+}
+if (isBlackMap[p]) score += val;
+else score -= val;
+}
+}
+if (bBishops >= two) score += 35;
+if (wBishops >= two) score -= 35;
+var isEndgame = (wQueens === zero && bQueens === zero) || (wMaterial <= 1300 && bMaterial <= 1300);
+if (isEndgame) {
+score += cFlat[bKingR * eight + bKingC] * 10;
+score -= cFlat[wKingR * eight + wKingC] * 10;
+var matDiff = bMaterial - wMaterial;
+var kingDist = Math.abs(bKingR - wKingR) + Math.abs(bKingC - wKingC);
+if (matDiff >= 300) {
+var wEdgeDist = Math.abs(wKingR - 3.5) + Math.abs(wKingC - 3.5);
+score += Math.round(wEdgeDist * 14) + (14 - kingDist) * six;
+} else if (matDiff <= -300) {
+var bEdgeDist = Math.abs(bKingR - 3.5) + Math.abs(bKingC - 3.5);
+score -= Math.round(bEdgeDist * 14) + (14 - kingDist) * six;
+}
+} else {
+if (bKingR === zero && (bKingC === six || bKingC === two || bKingC === one || bKingC === seven)) score += 50;
+else if (bKingR === zero && bKingC === four) score += 10;
+else score -= 40;
+if (wKingR === seven && (wKingC === six || wKingC === two || wKingC === one || wKingC === seven)) score -= 50;
+else if (wKingR === seven && wKingC === four) score -= 10;
+else score += 40;
+}
+return score;
+}
+function getFastMoves(cl, b, inSim, capturesOnly) {
+var list = [];
+var colorMap = cl === 'W' ? isWhiteMap : isBlackMap;
+for (var r = 0; r < eight; r++) {
+var row = b[r];
+for (var c = 0; c < eight; c++) {
+var piece = row[c];
+if (piece !== '' && colorMap[piece]) {
+var pseudo = getPseudo(r, c, b, true, inSim);
+for (var i = 0; i < pseudo.length; i++) {
+var to = pseudo[i];
+var target = b[to.r][to.c];
+if (capturesOnly && target === '' && !to.isENPassant) continue;
+var mvvScore = target !== '' ? (vals[target] * 10 - vals[piece]) : 0;
+list.push({ fr: r, fc: c, to: to, order: mvvScore });
+}
+}
+}
+}
+return list.sort(function(a, b) { return b.order - a.order; });
+}
+function makeSimMove(b, m) {
+var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
+var origPiece = b[fr][fc];
+var captured = b[tr][tc];
+var epCaptured = '';
+var placedPiece = origPiece;
+if (tr === seven && origPiece === 'p') placedPiece = 'q';
+else if (tr === zero && origPiece === 'P') placedPiece = 'Q';
+b[tr][tc] = placedPiece;
+b[fr][fc] = '';
+if (origPiece === 'K') { wKing.r = tr; wKing.c = tc; }
+else if (origPiece === 'k') { bKing.r = tr; bKing.c = tc; }
+if (m.to.isENPassant) {
+epCaptured = b[fr][tc];
+b[fr][tc] = '';
+}
+if (m.to.isCastle) {
+if (tc === six) {
+b[tr].splice(five, 1, b[tr][seven]);
+b[tr].splice(seven, 1, '');
+} else if (tc === two) {
+b[tr].splice(three, 1, b[tr][zero]);
+b[tr].splice(zero, 1, '');
+}
+}
+return { origPiece: origPiece, captured: captured, epCaptured: epCaptured };
+}
+function unmakeSimMove(b, m, u) {
+var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
+var origPiece = u.origPiece;
+b[fr][fc] = origPiece;
+b[tr][tc] = u.captured;
+if (origPiece === 'K') { wKing.r = fr; wKing.c = fc; }
+else if (origPiece === 'k') { bKing.r = fr; bKing.c = fc; }
+if (m.to.isENPassant) b[fr][tc] = u.epCaptured;
+if (m.to.isCastle) {
+if (tc === six) {
+b[tr].splice(seven, 1, b[tr][five]);
+b[tr].splice(five, 1, '');
+} else if (tc === two) {
+b[tr].splice(zero, 1, b[tr][three]);
+b[tr].splice(three, 1, '');
+}
+}
+}
+var nodes = 0;
+function quiesce(b, alpha, beta, isMax, qDepth) {
+if ((++nodes & 63) === 0 && Date.now() - startTime > timeLimitMs) {
+timeUp = true;
+return 0;
+}
+var standPat = evalBoard(b);
+if (qDepth === 0) return standPat;
+if (isMax) {
+if (standPat >= beta) return beta;
+if (standPat + 950 < alpha) return alpha;
+if (standPat > alpha) alpha = standPat;
+} else {
+if (standPat <= alpha) return alpha;
+if (standPat - 950 > beta) return beta;
+if (standPat < beta) beta = standPat;
+}
 var activeColor = isMax ? 'B' : 'W';
 var enemyColor = isMax ? 'W' : 'B';
 var myKing = isMax ? bKing : wKing;
@@ -781,7 +959,7 @@ bestEvaluatedMoves = [{ move: topMoves[zero], score: 0 }];
 }
 var roll = Math.random() * 100;
 var targetIndex = 0;
-if (diffSetting === "1600") {
+if (isHard) {
 targetIndex = 0;
 } else if (diffSetting === "1200") {
 if (roll > 92 && bestEvaluatedMoves.length > 1) targetIndex = 1;
@@ -792,6 +970,11 @@ targetIndex = Math.min(Math.floor(Math.random() * two) + 1, bestEvaluatedMoves.l
 }
 bm = bestEvaluatedMoves[targetIndex].move;
 }
+var botMovingPiece = bd[bm.fr][bm.fc];
+var botIsCapture = (bd[bm.to.r][bm.to.c] !== '' || bm.to.isENPassant);
+var botSanBase = buildSANPrefix(bm.fr, bm.fc, bm.to.r, bm.to.c, bm.to);
+var isBotPromo = (botMovingPiece === 'p' && bm.to.r === seven) || (botMovingPiece === 'P' && bm.to.r === zero);
+if (isBotPromo) botSanBase += '=Q';
 if (bd[bm.fr][bm.fc] === 'K') hasMoved['W_K'] = true;
 if (bd[bm.fr][bm.fc] === 'R' && bm.fr === seven && bm.fc === zero) hasMoved['W_R1'] = true;
 if (bd[bm.fr][bm.fc] === 'R' && bm.fr === seven && bm.fc === seven) hasMoved['W_R8'] = true;
@@ -803,6 +986,8 @@ var botFromCol = bm.fc;
 var botFromRow = bm.fr;
 bd[bm.to.r][bm.to.c] = bd[bm.fr][bm.fc];
 bd[bm.fr][bm.fc] = '';
+lastMove = { fr: botFromRow, fc: botFromCol, tr: bm.to.r, tc: bm.to.c };
+halfMoves = (botMovingPiece === 'p' || botMovingPiece === 'P' || botIsCapture) ? 0 : halfMoves + 1;
 if (bd[bm.to.r][bm.to.c] === 'p' && bm.to.r === seven) bd[bm.to.r][bm.to.c] = 'q';
 if (bd[bm.to.r][bm.to.c] === 'P' && bm.to.r === zero) bd[bm.to.r][bm.to.c] = 'Q';
 if ((bd[bm.to.r][bm.to.c] === 'K' || bd[bm.to.r][bm.to.c] === 'k') && Math.abs(bm.to.c - botFromCol) === two) {
@@ -816,8 +1001,9 @@ bd[bm.to.r].splice(zero, 1, '');
 }
 }
 epSquare = ((bd[bm.to.r][bm.to.c] === 'p' || bd[bm.to.r][bm.to.c] === 'P') && Math.abs(bm.to.r - botFromRow) === two) ? { r: (botFromRow + bm.to.r) / two, c: bm.to.c } : null;
-saveState();
 var playerColor = document.getElementById('pColor').value;
+finalizeSAN(botSanBase, playerColor);
+saveState();
 turn = playerColor;
 endState(playerColor);
 draw();
@@ -827,17 +1013,23 @@ if (!window.pendingPromo) return;
 var r = window.pendingPromo.row;
 var c = window.pendingPromo.col;
 var cl = window.pendingPromo.color;
+var sanBase = window.pendingPromo.sanPrefix + '=' + pieceType.toUpperCase();
 bd[r][c] = cl === 'W' ? pieceType.toUpperCase() : pieceType.toLowerCase();
 document.getElementById('promoModal').style.display = 'none';
 window.pendingPromo = null;
-if (endState(cl === 'W' ? 'B' : 'W')) return;
-turn = cl === 'W' ? 'B' : 'W';
+epSquare = null;
+var nextColor = cl === 'W' ? 'B' : 'W';
+finalizeSAN(sanBase, nextColor);
+saveState();
+if (endState(nextColor)) { draw(); return; }
+turn = nextColor;
 document.getElementById('msg').innerText = "Bot thinking...";
 draw();
 setTimeout(bot, 40);
 }
 function changeColor() {
 var choice = document.getElementById('pColor').value;
+draw();
 if (choice === 'B') {
 turn = 'W';
 document.getElementById('pColor').disabled = true;
@@ -859,6 +1051,19 @@ if (JSON.stringify(hBoard) === currentStr) repeatCount++;
 }
 if (repeatCount >= 3) {
 document.getElementById('msg').innerText = "Draw by Threefold Repetition!";
+gameResult = '1/2-1/2';
+turn = 'E';
+return true;
+}
+if (halfMoves >= 100) {
+document.getElementById('msg').innerText = "Draw by 50-Move Rule!";
+gameResult = '1/2-1/2';
+turn = 'E';
+return true;
+}
+if (isInsufficientMaterial()) {
+document.getElementById('msg').innerText = "Draw by Insufficient Material!";
+gameResult = '1/2-1/2';
 turn = 'E';
 return true;
 }
@@ -875,7 +1080,13 @@ var box = document.getElementById('msg');
 var playerColor = document.getElementById('pColor').value;
 var colorLabel = playerColor === 'W' ? 'White' : 'Black';
 if (!any) {
-box.innerText = check(cl, bd, null) ? (cl === playerColor ? "Checkmate! Bot wins." : "Checkmate! You win!") : "Draw / Stalemate!";
+if (check(cl, bd, null)) {
+box.innerText = cl === playerColor ? "Checkmate! Bot wins." : "Checkmate! You win!";
+gameResult = (cl === 'W') ? '0-1' : '1-0';
+} else {
+box.innerText = "Draw / Stalemate!";
+gameResult = '1/2-1/2';
+}
 turn = 'E';
 return true;
 }
@@ -883,6 +1094,7 @@ box.innerText = check(cl, bd, null) ? "Your Turn - CHECK!" : (cl === playerColor
 return false;
 }
 function undo() {
+if (document.getElementById('diff').value === 'extra') return;
 var playerColor = document.getElementById('pColor').value;
 var minHistory = playerColor === 'W' ? 3 : 4;
 var zero = 0, one = 1, four = 4, seven = 7;
@@ -892,8 +1104,12 @@ document.getElementById('promoModal').style.display = 'none';
 var curSnap = JSON.parse(boardHistory[boardHistory.length - one]);
 bd = Array.isArray(curSnap) ? curSnap : curSnap.bd;
 epSquare = curSnap.epSquare || null;
+moveHistory = curSnap.moveHistory ? curSnap.moveHistory.slice() : [];
+lastMove = curSnap.lastMove || null;
+halfMoves = curSnap.halfMoves || 0;
+gameResult = '';
 sel = null; moves = []; turn = playerColor;
-endState(playerColor); draw();
+renderMoveList(); endState(playerColor); draw();
 return;
 }
 if (boardHistory.length < minHistory) return;
@@ -903,6 +1119,10 @@ boardHistory.pop();
 var prev = JSON.parse(boardHistory[boardHistory.length - one]);
 bd = Array.isArray(prev) ? prev : prev.bd;
 epSquare = prev.epSquare || null;
+moveHistory = prev.moveHistory ? prev.moveHistory.slice() : [];
+lastMove = prev.lastMove || null;
+halfMoves = prev.halfMoves || 0;
+gameResult = '';
 hasMoved = {
 'W_K': false, 'W_R1': false, 'W_R8': false,
 'B_K': false, 'B_R1': false, 'B_R8': false
@@ -918,12 +1138,16 @@ if (hBoard[zero][zero] !== 'r') hasMoved['B_R1'] = true;
 if (hBoard[zero][seven] !== 'r') hasMoved['B_R8'] = true;
 }
 sel = null; moves = []; turn = playerColor;
-endState(playerColor); draw();
+renderMoveList(); endState(playerColor); draw();
 }
 function rst() {
 bd = JSON.parse(JSON.stringify(start));
 sel = null; moves = []; turn = 'W';
 boardHistory = [];
+moveHistory = [];
+lastMove = null;
+halfMoves = 0;
+gameResult = '*';
 saveState();
 epSquare = null;
 hasMoved = { 'W_K': false, 'W_R1': false, 'W_R8': false, 'B_K': false, 'B_R1': false, 'B_R8': false };
@@ -931,11 +1155,14 @@ document.getElementById('pColor').disabled = false;
 document.getElementById('diff').disabled = false;
 document.getElementById('pColor').value = 'W';
 document.getElementById('msg').innerText = "Your Turn (White)";
+updateUndoVisibility();
+renderMoveList();
 draw();
 }
 if (document.readyState === 'loading') {
-document.addEventListener('DOMContentLoaded', draw);
+document.addEventListener('DOMContentLoaded', function() { updateUndoVisibility(); draw(); });
 } else {
+updateUndoVisibility();
 draw();
 }
 </script>
