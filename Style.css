@@ -67,7 +67,8 @@
 .dashed-line {
   width: 100%;                  
   border-bottom: 5px dashed brown; 
-  margin: 20px 0;                
+  margin: 20px 0;  
+  background-color: lightblue;
 }
 
 
