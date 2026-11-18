@@ -10,6 +10,8 @@
   background-color: #b0cda8;
   border-style: double;
   border-width: 10px;
+box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+
 }
 #Subheading1{
   text-align: center;
@@ -57,12 +59,17 @@
   border-color: blue;
   border-style: double;
   border-width: 10px;
+
+box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+
 }
 .image1{
   display: flex;
   flex-flow: wrap flex-end;
   justify-content: center;
   align-content: center;
+box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+
 }
 .dashed-line {
   width: 100%;                  
