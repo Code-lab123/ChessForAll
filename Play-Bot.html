@@ -456,7 +456,7 @@ if (m.isENPassant) b[r][m.c] = epCaptured;
 }
 return legal;
 }
-    function draw() {
+        function draw() {
         var t = document.getElementById('tbl');
         if (!t) return;
         t.innerHTML = '';
@@ -466,11 +466,24 @@ return legal;
         for (var rIdx = 0; rIdx < 8; rIdx++) {
             var r = flip ? 7 - rIdx : rIdx;
             var tr = document.createElement('tr');
+            tr.style.background = 'transparent';
+            tr.style.border = 'none';
+
             for (var cIdx = 0; cIdx < 8; cIdx++) {
                 var c = flip ? 7 - cIdx : cIdx;
                 var td = document.createElement('td');
                 var isLight = (r + c) % 2 === 0;
-                td.style.width = '45px'; td.style.height = '45px'; td.style.textAlign = 'center'; td.style.fontSize = '30px'; td.style.cursor = 'pointer';
+
+                td.style.width = '45px';
+                td.style.height = '45px';
+                td.style.padding = '0';
+                td.style.margin = '0';
+                td.style.border = 'none';
+                td.style.textAlign = 'center';
+                td.style.verticalAlign = 'middle';
+                td.style.fontSize = '30px';
+                td.style.lineHeight = '45px';
+                td.style.cursor = 'pointer';
                 td.style.fontFamily = 'sans-serif';
                 td.style.position = 'relative';
                 td.style.backgroundColor = isLight ? '#f0d9b5' : '#b58863';
@@ -481,17 +494,35 @@ return legal;
                 }
 
                 // Selected square highlight
-                if (sel && sel.r === r && sel.c === c) td.style.backgroundColor = '#7fffd4';
+                if (sel && sel.r === r && sel.c === c) {
+                    td.style.backgroundColor = '#7fffd4';
+                }
+
+                // Piece rendered directly in td (no span wrapper)
+                if (bd[r][c]) {
+                    td.innerText = syms[bd[r][c]];
+                    if (isWhiteMap[bd[r][c]]) {
+                        td.style.color = '#ffffff';
+                        td.style.textShadow = '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000, 1px 0 0 #000, 0 -1px 0 #000, -1px 0 0 #000';
+                    } else {
+                        td.style.color = '#151515';
+                        td.style.textShadow = 'none';
+                    }
+                }
 
                 // Rank coordinate (left edge)
                 if (cIdx === 0) {
-                    var rankLbl = document.createElement('span');
+                    var rankLbl = document.createElement('div');
                     rankLbl.innerText = 8 - r;
                     rankLbl.style.position = 'absolute';
                     rankLbl.style.top = '2px';
                     rankLbl.style.left = '3px';
                     rankLbl.style.fontSize = '10px';
+                    rankLbl.style.lineHeight = '1';
                     rankLbl.style.fontWeight = 'bold';
+                    rankLbl.style.background = 'transparent';
+                    rankLbl.style.border = 'none';
+                    rankLbl.style.padding = '0';
                     rankLbl.style.color = isLight ? '#b58863' : '#f0d9b5';
                     rankLbl.style.pointerEvents = 'none';
                     td.appendChild(rankLbl);
@@ -499,33 +530,25 @@ return legal;
 
                 // File coordinate (bottom edge)
                 if (rIdx === 7) {
-                    var fileLbl = document.createElement('span');
+                    var fileLbl = document.createElement('div');
                     fileLbl.innerText = files[c];
                     fileLbl.style.position = 'absolute';
-                    fileLbl.style.bottom = '1px';
+                    fileLbl.style.bottom = '2px';
                     fileLbl.style.right = '3px';
                     fileLbl.style.fontSize = '10px';
+                    fileLbl.style.lineHeight = '1';
                     fileLbl.style.fontWeight = 'bold';
+                    fileLbl.style.background = 'transparent';
+                    fileLbl.style.border = 'none';
+                    fileLbl.style.padding = '0';
                     fileLbl.style.color = isLight ? '#b58863' : '#f0d9b5';
                     fileLbl.style.pointerEvents = 'none';
                     td.appendChild(fileLbl);
                 }
 
-                if (bd[r][c]) {
-                    var pSpan = document.createElement('span');
-                    pSpan.innerText = syms[bd[r][c]];
-                    if (isWhiteMap[bd[r][c]]) {
-                        pSpan.style.color = '#ffffff';
-                        pSpan.style.textShadow = '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000, 1px 0 0 #000, 0 -1px 0 #000, -1px 0 0 #000';
-                    } else {
-                        pSpan.style.color = '#151515';
-                        pSpan.style.textShadow = 'none';
-                    }
-                    td.appendChild(pSpan);
-                }
-
+                // Legal move dots & capture rings restored
                 for (var i = 0; i < moves.length; i++) {
-                    if (moves[i].r === r && moves[i].c === c && !bd[r][c]) {
+                    if (moves[i].r === r && moves[i].c === c) {
                         var dot = document.createElement('div');
                         dot.style.position = 'absolute';
                         dot.style.top = '50%';
@@ -534,8 +557,19 @@ return legal;
                         dot.style.borderRadius = '50%';
                         dot.style.backgroundColor = 'rgba(0, 0, 0, 0.15)';
                         dot.style.pointerEvents = 'none';
-                        dot.style.width = '12px';
-                        dot.style.height = '12px';
+                        dot.style.padding = '0';
+                        dot.style.margin = '0';
+
+                        if (bd[r][c]) {
+                            dot.style.width = '38px';
+                            dot.style.height = '38px';
+                            dot.style.border = '4px solid rgba(0, 0, 0, 0.15)';
+                            dot.style.backgroundColor = 'transparent';
+                        } else {
+                            dot.style.width = '12px';
+                            dot.style.height = '12px';
+                            dot.style.border = 'none';
+                        }
                         td.appendChild(dot);
                     }
                 }
