@@ -713,96 +713,40 @@ return legal;
 else if (simBoard[r][c] === 'k') { bKing.r = r; bKing.c = c; }
 }
 }
-function evalBoard(b) {
-var score = 0;
-var wBishops = 0, bBishops = 0;
-var wQueens = 0, bQueens = 0;
-var wMaterial = 0, bMaterial = 0;
-var wKingR = seven, wKingC = four, bKingR = zero, bKingC = four;
-for (var r = 0; r < eight; r++) {
-var row = b[r];
-var r8 = r * eight;
-for (var c = 0; c < eight; c++) {
-var p = row[c];
-if (p === '') continue;
-var idx = r8 + c;
-var val = vals[p];
-if (p === 'p') {
-bMaterial += 100;
-var pBonus = (c === three || c === four) && r === one ? -20 : pFlat[idx];
-val += pBonus + cFlat[idx] * three + (r - one) * seven;
-if (r > zero && ((c > zero && b[r - one][c - one] === 'p') || (c < seven && b[r - one][c + one] === 'p'))) val += 10;
-} else if (p === 'P') {
-wMaterial += 100;
-var pBonus = (c === three || c === four) && r === six ? -20 : pFlat[idx];
-val += pBonus + cFlat[idx] * three + (six - r) * seven;
-if (r < seven && ((c > zero && b[r + one][c - one] === 'P') || (c < seven && b[r + one][c + one] === 'P'))) val += 10;
-} else if (p === 'n') {
-bMaterial += 300;
-val += nFlat[idx] + cFlat[idx] * six;
-if (r === zero) val -= 10;
-} else if (p === 'N') {
-wMaterial += 300;
-val += nFlat[idx] + cFlat[idx] * six;
-if (r === seven) val -= 10;
-} else if (p === 'b') {
-bMaterial += 310;
-bBishops++;
-val += cFlat[idx] * 9;
-if (r === zero) val -= 10;
-} else if (p === 'B') {
-wMaterial += 310;
-wBishops++;
-val += cFlat[idx] * 9;
-if (r === seven) val -= 10;
-} else if (p === 'r') {
-bMaterial += 500;
-if (r === six) val += 25;
-} else if (p === 'R') {
-wMaterial += 500;
-if (r === one) val += 25;
-} else if (p === 'q') {
-bMaterial += 900;
-bQueens++;
-if (r !== zero && r < three) val -= 35;
-} else if (p === 'Q') {
-wMaterial += 900;
-wQueens++;
-if (r !== seven && r > four) val -= 35;
-} else if (p === 'k') {
-bKingR = r; bKingC = c;
-} else if (p === 'K') {
-wKingR = r; wKingC = c;
-}
-if (isBlackMap[p]) score += val;
-else score -= val;
-}
-}
-if (bBishops >= two) score += 35;
-if (wBishops >= two) score -= 35;
-var isEndgame = (wQueens === zero && bQueens === zero) || (wMaterial <= 1300 && bMaterial <= 1300);
-if (isEndgame) {
-score += cFlat[bKingR * eight + bKingC] * 10;
-score -= cFlat[wKingR * eight + wKingC] * 10;
-var matDiff = bMaterial - wMaterial;
-var kingDist = Math.abs(bKingR - wKingR) + Math.abs(bKingC - wKingC);
-if (matDiff >= 300) {
-var wEdgeDist = Math.abs(wKingR - 3.5) + Math.abs(wKingC - 3.5);
-score += Math.round(wEdgeDist * 14) + (14 - kingDist) * six;
-} else if (matDiff <= -300) {
-var bEdgeDist = Math.abs(bKingR - 3.5) + Math.abs(bKingC - 3.5);
-score -= Math.round(bEdgeDist * 14) + (14 - kingDist) * six;
-}
-} else {
-if (bKingR === zero && (bKingC === six || bKingC === two || bKingC === one || bKingC === seven)) score += 50;
-else if (bKingR === zero && bKingC === four) score += 10;
-else score -= 40;
-if (wKingR === seven && (wKingC === six || wKingC === two || wKingC === one || wKingC === seven)) score -= 50;
-else if (wKingR === seven && wKingC === four) score -= 10;
-else score += 40;
-}
-return score;
-}
+    function updateEvalBar() {
+        var pColor = document.getElementById('pColor').value;
+        var isBlack = (pColor === 'B');
+        var evalWrap = document.getElementById('evalWrap');
+        var evalFill = document.getElementById('evalFill');
+        if (!evalWrap || !evalFill) return;
+
+        var pieceVals = { 'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'p': -1, 'n': -3, 'b': -3, 'r': -5, 'q': -9 };
+        var matDiff = 0;
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                var p = bd[r][c];
+                if (pieceVals[p]) matDiff += pieceVals[p];
+            }
+        }
+
+        var whitePct = 50 + 50 * (2 / (1 + Math.exp(-matDiff / 4.0)) - 1);
+        whitePct = Math.max(5, Math.min(95, whitePct));
+
+        if (gameResult === '1-0') whitePct = 100;
+        else if (gameResult === '0-1') whitePct = 0;
+        else if (gameResult === '1/2-1/2') whitePct = 50;
+
+        if (!isBlack) {
+            evalWrap.style.backgroundColor = '#151518';
+            evalFill.style.backgroundColor = '#f0d9b5';
+            evalFill.style.height = whitePct.toFixed(1) + '%';
+        } else {
+            evalWrap.style.backgroundColor = '#f0d9b5';
+            evalFill.style.backgroundColor = '#151518';
+            evalFill.style.height = (100 - whitePct).toFixed(1) + '%';
+        }
+    }
+
               function getFastMoves(cl, b, inSim, capturesOnly) {
             var list = [];
             var colorMap = cl === 'W' ? isWhiteMap : isBlackMap;
