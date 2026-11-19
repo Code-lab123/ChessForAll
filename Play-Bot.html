@@ -41,11 +41,7 @@
         </div>
     </div>
 
-    <div style="display: flex; justify-content: center; align-items: stretch; gap: 8px;">
-        <div id="evalWrap" title="Position Evaluation" style="width: 14px; height: 360px; background-color: #151518; border: 2px solid #3c4043; border-radius: 4px; overflow: hidden; position: relative; box-sizing: border-box; flex-shrink: 0;">
-            <div id="evalFill" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 50%; background-color: #f0d9b5; transition: height 0.35s ease, background-color 0.2s; padding: 0; margin: 0; border: none;"></div>
-            <div style="position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: rgba(128,128,128,0.6); z-index: 2; padding: 0; margin: 0; border: none;"></div>
-        </div>
+    <div style="display: flex; justify-content: center; align-items: stretch;">
         <table id="tbl" style="border-collapse: collapse; margin: 0; border: 3px solid #3c4043; width: 360px; height: 360px; table-layout: fixed;"></table>
     </div>
 
@@ -74,7 +70,6 @@
     var lastMove = null;
     var halfMoves = 0;
     var gameResult = '*';
-    var currentEval = 0;
 
     var N_DR = [-2,-2,-1,-1,1,1,2,2];
     var N_DC = [-1,1,-2,2,-2,2,-1,1];
@@ -84,6 +79,10 @@
     var R_DC = [0,0,-1,1];
     var K_DR = [-1,-1,-1,0,0,1,1,1];
     var K_DC = [-1,0,1,-1,1,-1,0,1];
+
+    var pFlat = "0000000055500555000000000000000000000000000000005550055500000000".split("").map(Number);
+    var nFlat = [-50,-40,-30,-30,-30,-30,-40,-50,-40,-20,0,5,5,0,-20,-40,-30,5,15,20,20,15,5,-30,-30,0,20,30,30,20,0,-30,-30,5,20,30,30,20,5,-30,-30,0,15,20,20,15,0,-30,-40,-20,0,0,0,0,-20,-40,-50,-40,-30,-30,-30,-30,-40,-50];
+    var cFlat = [-3,-2,-2,-2,-2,-2,-2,-3,-2,0,0,0,0,0,0,-2,-2,0,2,4,4,2,0,-2,-2,0,4,8,8,4,0,-2,-2,0,4,8,8,4,0,-2,-2,0,2,4,4,2,0,-2,-2,0,0,0,0,0,0,-2,-3,-2,-2,-2,-2,-2,-2,-3];
 
     var epSquare = null;
     var hasMoved = {
@@ -98,8 +97,7 @@
             epSquare: epSquare,
             moveHistory: moveHistory,
             lastMove: lastMove,
-            halfMoves: halfMoves,
-            evalScore: currentEval
+            halfMoves: halfMoves
         }));
     }
     saveState();
@@ -116,7 +114,30 @@
             undoBtn.style.display = (diff === 'extra') ? 'none' : 'block';
         }
     }
-   
+    function evalBoard(b) {
+        var score = 0;
+        for (var r = 0; r < 8; r++) {
+            var row = b[r];
+            for (var c = 0; c < 8; c++) {
+                var p = row[c];
+                if (p === '') continue;
+                var idx = r * 8 + c;
+                var flipIdx = (7 - r) * 8 + c;
+                if (p === 'p') score += 100 + pFlat[idx] + r * 4;
+                else if (p === 'P') score -= 100 + pFlat[flipIdx] + (7 - r) * 4;
+                else if (p === 'n') score += 300 + nFlat[idx];
+                else if (p === 'N') score -= 300 + nFlat[flipIdx];
+                else if (p === 'b') score += 310 + cFlat[idx];
+                else if (p === 'B') score -= 310 + cFlat[flipIdx];
+                else if (p === 'r') score += 500 + cFlat[idx];
+                else if (p === 'R') score -= 500 + cFlat[flipIdx];
+                else if (p === 'q') score += 900 + cFlat[idx];
+                else if (p === 'Q') score -= 900 + cFlat[flipIdx];
+            }
+        }
+        return score;
+    }
+
     function buildSANPrefix(fr, fc, tr, tc, moveObj) {
         var piece = bd[fr][fc];
         var upper = piece.toUpperCase();
@@ -345,9 +366,9 @@
             kr = kPos.r; kc = kPos.c;
         } else {
             for (var r = 0; r < 8; r++) {
-                for (var c = 0; c < 8; c++) {
-                    if (b[r][c] === targetK) { kr = r; kc = c; break; }
-                }
+for (var c = 0; c < 8; c++) {
+if (b[r][c] === targetK) { kr = r; kc = c; break; }
+}
 if (kr !== -1) break;
 }
 }
@@ -474,7 +495,7 @@ if (m.isENPassant) b[r][m.c] = epCaptured;
 }
 return legal;
 }
-         function draw() {
+      function draw() {
         var t = document.getElementById('tbl');
         if (!t) return;
         t.innerHTML = '';
@@ -591,37 +612,7 @@ return legal;
             }
             t.appendChild(tr);
         }
-
-        // Pure Material + Checkmate Eval Bar
-        var evalWrap = document.getElementById('evalWrap');
-        var evalFill = document.getElementById('evalFill');
-        if (evalWrap && evalFill) {
-            var pVals = { 'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'p': -1, 'n': -3, 'b': -3, 'r': -5, 'q': -9 };
-            var matDiff = 0;
-            for (var r = 0; r < 8; r++) {
-                for (var c = 0; c < 8; c++) {
-                    if (pVals[bd[r][c]]) matDiff += pVals[bd[r][c]];
-                }
-            }
-            var whitePct = 50 + 50 * (2 / (1 + Math.exp(-matDiff / 4.0)) - 1);
-            whitePct = Math.max(5, Math.min(95, whitePct));
-
-            if (gameResult === '1-0') whitePct = 100;
-            else if (gameResult === '0-1') whitePct = 0;
-            else if (gameResult === '1/2-1/2') whitePct = 50;
-
-            if (!flip) {
-                evalWrap.style.backgroundColor = '#151518';
-                evalFill.style.backgroundColor = '#f0d9b5';
-                evalFill.style.height = whitePct.toFixed(1) + '%';
-            } else {
-                evalWrap.style.backgroundColor = '#f0d9b5';
-                evalFill.style.backgroundColor = '#151518';
-                evalFill.style.height = (100 - whitePct).toFixed(1) + '%';
-            }
-        }
     }
-
 
     function clickSq(r, c) {
         var playerColor = document.getElementById('pColor').value;
@@ -706,53 +697,16 @@ return legal;
         var botColor = document.getElementById('pColor').value === 'W' ? 'B' : 'W';
         var zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5, six = 6, seven = 7, eight = 8;
 
-        var pFlat = "0000000055500555000000000000000000000000000000005550055500000000".split("").map(Number);
-        var nFlat = [-50,-40,-30,-30,-30,-30,-40,-50,-40,-20,0,5,5,0,-20,-40,-30,5,15,20,20,15,5,-30,-30,0,20,30,30,20,0,-30,-30,5,20,30,30,20,5,-30,-30,0,15,20,20,15,0,-30,-40,-20,0,0,0,0,-20,-40,-50,-40,-30,-30,-30,-30,-40,-50];
-        var cFlat = [-3,-2,-2,-2,-2,-2,-2,-3,-2,0,0,0,0,0,0,-2,-2,0,2,4,4,2,0,-2,-2,0,4,8,8,4,0,-2,-2,0,4,8,8,4,0,-2,-2,0,2,4,4,2,0,-2,-2,0,0,0,0,0,0,-2,-3,-2,-2,-2,-2,-2,-2,-3];
-
         var simBoard = JSON.parse(JSON.stringify(bd));
         var wKing = { r: seven, c: four }, bKing = { r: zero, c: four };
         for (var r = 0; r < eight; r++) {
             for (var c = 0; c < eight; c++) {
                 if (simBoard[r][c] === 'K') { wKing.r = r; wKing.c = c; }
-else if (simBoard[r][c] === 'k') { bKing.r = r; bKing.c = c; }
-}
-}
-    function updateEvalBar() {
-        var pColor = document.getElementById('pColor').value;
-        var isBlack = (pColor === 'B');
-        var evalWrap = document.getElementById('evalWrap');
-        var evalFill = document.getElementById('evalFill');
-        if (!evalWrap || !evalFill) return;
-
-        var pieceVals = { 'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'p': -1, 'n': -3, 'b': -3, 'r': -5, 'q': -9 };
-        var matDiff = 0;
-        for (var r = 0; r < 8; r++) {
-            for (var c = 0; c < 8; c++) {
-                var p = bd[r][c];
-                if (pieceVals[p]) matDiff += pieceVals[p];
+                else if (simBoard[r][c] === 'k') { bKing.r = r; bKing.c = c; }
             }
         }
 
-        var whitePct = 50 + 50 * (2 / (1 + Math.exp(-matDiff / 4.0)) - 1);
-        whitePct = Math.max(5, Math.min(95, whitePct));
-
-        if (gameResult === '1-0') whitePct = 100;
-        else if (gameResult === '0-1') whitePct = 0;
-        else if (gameResult === '1/2-1/2') whitePct = 50;
-
-        if (!isBlack) {
-            evalWrap.style.backgroundColor = '#151518';
-            evalFill.style.backgroundColor = '#f0d9b5';
-            evalFill.style.height = whitePct.toFixed(1) + '%';
-        } else {
-            evalWrap.style.backgroundColor = '#f0d9b5';
-            evalFill.style.backgroundColor = '#151518';
-            evalFill.style.height = (100 - whitePct).toFixed(1) + '%';
-        }
-    }
-
-              function getFastMoves(cl, b, inSim, capturesOnly) {
+        function getFastMoves(cl, b, inSim, capturesOnly) {
             var list = [];
             var colorMap = cl === 'W' ? isWhiteMap : isBlackMap;
             for (var r = 0; r < eight; r++) {
@@ -760,118 +714,106 @@ else if (simBoard[r][c] === 'k') { bKing.r = r; bKing.c = c; }
                 for (var c = 0; c < eight; c++) {
                     var piece = row[c];
                     if (piece !== '' && colorMap[piece]) {
-                        var pseudo = getPseudo(r, c, b, true, inSim);
-                        for (var i = 0; i < pseudo.length; i++) {
-                            var to = pseudo[i];
-                            var target = b[to.r][to.c];
-                            if (capturesOnly && target === '' && !to.isENPassant) continue;
-                            var mvvScore = target !== '' ? (vals[target] * 10 - vals[piece]) : 0;
-                            list.push({ fr: r, fc: c, to: to, order: mvvScore });
-                        }
-                    }
-                }
-            }
-            return list.sort(function(a, b) { return b.order - a.order; });
-        }
-
-        function makeSimMove(b, m) {
-            var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
-            var origPiece = b[fr][fc];
-            var captured = b[tr][tc];
-            var epCaptured = '';
-
-            var placedPiece = origPiece;
-            if (tr === seven && origPiece === 'p') placedPiece = 'q';
-            else if (tr === zero && origPiece === 'P') placedPiece = 'Q';
-
-            b[tr][tc] = placedPiece;
-            b[fr][fc] = '';
-
-            if (origPiece === 'K') { wKing.r = tr; wKing.c = tc; }
-            else if (origPiece === 'k') { bKing.r = tr; bKing.c = tc; }
-
-            if (m.to.isENPassant) {
-                epCaptured = b[fr][tc];
-                b[fr][tc] = '';
-            }
-            if (m.to.isCastle) {
-                if (tc === six) {
-                    b[tr].splice(five, 1, b[tr][seven]);
-                    b[tr].splice(seven, 1, '');
-                } else if (tc === two) {
-                    b[tr].splice(three, 1, b[tr][zero]);
-                    b[tr].splice(zero, 1, '');
-                }
-            }
-            return { origPiece: origPiece, captured: captured, epCaptured: epCaptured };
-        }
-
-        function unmakeSimMove(b, m, u) {
-            var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
-            var origPiece = u.origPiece;
-            b[fr][fc] = origPiece;
-            b[tr][tc] = u.captured;
-
-            if (origPiece === 'K') { wKing.r = fr; wKing.c = fc; }
-            else if (origPiece === 'k') { bKing.r = fr; bKing.c = fc; }
-
-            if (m.to.isENPassant) b[fr][tc] = u.epCaptured;
-            if (m.to.isCastle) {
-                if (tc === six) {
-                    b[tr].splice(seven, 1, b[tr][five]);
-                    b[tr].splice(five, 1, '');
-                } else if (tc === two) {
-                    b[tr].splice(zero, 1, b[tr][three]);
-                    b[tr].splice(three, 1, '');
-                }
-            }
-        }
-
-        var nodes = 0;
-        function quiesce(b, alpha, beta, isMax, qDepth) {
-            if ((++nodes & 63) === 0 && Date.now() - startTime > timeLimitMs) {
-                timeUp = true;
-                return 0;
-            }
-            var standPat = evalBoard(b);
-            if (qDepth === 0) return standPat;
-
-            if (isMax) {
-                if (standPat >= beta) return beta;
-                if (standPat + 950 < alpha) return alpha;
-                if (standPat > alpha) alpha = standPat;
-            } else {
-                if (standPat <= alpha) return alpha;
-                if (standPat - 950 > beta) return beta;
-                if (standPat < beta) beta = standPat;
-            }
-
-            var activeColor = isMax ? 'B' : 'W';
-            var enemyColor = isMax ? 'W' : 'B';
-            var myKing = isMax ? bKing : wKing;
-            var capMoves = getFastMoves(activeColor, b, true, true);
-            for (var i = 0; i < capMoves.length; i++) {
-                var m = capMoves[i];
-                var uData = makeSimMove(b, m);
-                if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
-                    unmakeSimMove(b, m, uData);
-                    continue;
-                }
-                var score = quiesce(b, alpha, beta, !isMax, qDepth - 1);
-                unmakeSimMove(b, m, uData);
-                if (timeUp) return 0;
-                if (isMax) {
-                    if (score >= beta) return beta;
-                    if (score > alpha) alpha = score;
-                } else {
-                    if (score <= alpha) return alpha;
-                    if (score < beta) beta = score;
-                }
-            }
-            return isMax ? alpha : beta;
-        }
-
-        function minimax(b, depth, alpha, beta, isMax) {
+var pseudo = getPseudo(r, c, b, true, inSim);
+for (var i = 0; i < pseudo.length; i++) {
+var to = pseudo[i];
+var target = b[to.r][to.c];
+if (capturesOnly && target === '' && !to.isENPassant) continue;
+var mvvScore = target !== '' ? (vals[target] * 10 - vals[piece]) : 0;
+list.push({ fr: r, fc: c, to: to, order: mvvScore });
+}
+}
+}
+}
+return list.sort(function(a, b) { return b.order - a.order; });
+}
+function makeSimMove(b, m) {
+var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
+var origPiece = b[fr][fc];
+var captured = b[tr][tc];
+var epCaptured = '';
+var placedPiece = origPiece;
+if (tr === seven && origPiece === 'p') placedPiece = 'q';
+else if (tr === zero && origPiece === 'P') placedPiece = 'Q';
+b[tr][tc] = placedPiece;
+b[fr][fc] = '';
+if (origPiece === 'K') { wKing.r = tr; wKing.c = tc; }
+else if (origPiece === 'k') { bKing.r = tr; bKing.c = tc; }
+if (m.to.isENPassant) {
+epCaptured = b[fr][tc];
+b[fr][tc] = '';
+}
+if (m.to.isCastle) {
+if (tc === six) {
+b[tr].splice(five, 1, b[tr][seven]);
+b[tr].splice(seven, 1, '');
+} else if (tc === two) {
+b[tr].splice(three, 1, b[tr][zero]);
+b[tr].splice(zero, 1, '');
+}
+}
+return { origPiece: origPiece, captured: captured, epCaptured: epCaptured };
+}
+function unmakeSimMove(b, m, u) {
+var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
+var origPiece = u.origPiece;
+b[fr][fc] = origPiece;
+b[tr][tc] = u.captured;
+if (origPiece === 'K') { wKing.r = fr; wKing.c = fc; }
+else if (origPiece === 'k') { bKing.r = fr; bKing.c = fc; }
+if (m.to.isENPassant) b[fr][tc] = u.epCaptured;
+if (m.to.isCastle) {
+if (tc === six) {
+b[tr].splice(seven, 1, b[tr][five]);
+b[tr].splice(five, 1, '');
+} else if (tc === two) {
+b[tr].splice(zero, 1, b[tr][three]);
+b[tr].splice(three, 1, '');
+}
+}
+}
+var nodes = 0;
+function quiesce(b, alpha, beta, isMax, qDepth) {
+if ((++nodes & 63) === 0 && Date.now() - startTime > timeLimitMs) {
+timeUp = true;
+return 0;
+}
+var standPat = evalBoard(b);
+if (qDepth === 0) return standPat;
+if (isMax) {
+if (standPat >= beta) return beta;
+if (standPat + 950 < alpha) return alpha;
+if (standPat > alpha) alpha = standPat;
+} else {
+if (standPat <= alpha) return alpha;
+if (standPat - 950 > beta) return beta;
+if (standPat < beta) beta = standPat;
+}
+var activeColor = isMax ? 'B' : 'W';
+var enemyColor = isMax ? 'W' : 'B';
+var myKing = isMax ? bKing : wKing;
+var capMoves = getFastMoves(activeColor, b, true, true);
+for (var i = 0; i < capMoves.length; i++) {
+var m = capMoves[i];
+var uData = makeSimMove(b, m);
+if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
+unmakeSimMove(b, m, uData);
+continue;
+}
+var score = quiesce(b, alpha, beta, !isMax, qDepth - 1);
+unmakeSimMove(b, m, uData);
+if (timeUp) return 0;
+if (isMax) {
+if (score >= beta) return beta;
+if (score > alpha) alpha = score;
+} else {
+if (score <= alpha) return alpha;
+if (score < beta) beta = score;
+}
+}
+return isMax ? alpha : beta;
+}
+              function minimax(b, depth, alpha, beta, isMax) {
             if ((++nodes & 63) === 0 && Date.now() - startTime > timeLimitMs) {
                 timeUp = true;
                 return 0;
@@ -982,98 +924,102 @@ else if (simBoard[r][c] === 'k') { bKing.r = r; bKing.c = c; }
                     return cm.fr === m.fr && cm.fc === m.fc && cm.tr === m.to.r && cm.tc === m.to.c;
                 });
             });
-if (validBook.length > zero) {
-bm = validBook[Math.floor(Math.random() * validBook.length)];
-var uBook = makeSimMove(simBoard, bm);
-currentEval = evalBoard(simBoard);
-unmakeSimMove(simBoard, bm, uBook);
-}
-}
-if (!bm) {
-var bestEvaluatedMoves = [];
-for (var d = 1; d <= maxDepth; d++) {
-var currentDepthMoves = [];
-for (var i = 0; i < topMoves.length; i++) {
-var m = topMoves[i];
-var uData = makeSimMove(simBoard, m);
-var baseValue = minimax(simBoard, d - 1, -Infinity, Infinity, botColor === 'W');
-unmakeSimMove(simBoard, m, uData);
-if (timeUp) break;
-currentDepthMoves.push({ move: m, score: baseValue });
-}
-if (timeUp) break;
-currentDepthMoves.sort(function(a, b) {
-return botColor === 'B' ? b.score - a.score : a.score - b.score;
-});
-bestEvaluatedMoves = currentDepthMoves;
-topMoves = bestEvaluatedMoves.map(function(item) { return item.move; });
-}
-if (bestEvaluatedMoves.length === 0) {
-bestEvaluatedMoves = [{ move: topMoves[zero], score: evalBoard(simBoard) }];
-}
-var roll = Math.random() * 100;
-var targetIndex = 0;
-if (isHard) {
-targetIndex = 0;
-} else if (diffSetting === "1200") {
-if (roll > 92 && bestEvaluatedMoves.length > 1) targetIndex = 1;
-} else if (diffSetting === "800") {
-if (roll > 82 && bestEvaluatedMoves.length > 1) {
-targetIndex = Math.min(Math.floor(Math.random() * two) + 1, bestEvaluatedMoves.length - 1);
-}
-}
-bm = bestEvaluatedMoves[targetIndex].move;
-currentEval = bestEvaluatedMoves[targetIndex].score;
-}
-var botMovingPiece = bd[bm.fr][bm.fc];
-var botIsCapture = (bd[bm.to.r][bm.to.c] !== '' || bm.to.isENPassant);
-var botSanBase = buildSANPrefix(bm.fr, bm.fc, bm.to.r, bm.to.c, bm.to);
-var isBotPromo = (botMovingPiece === 'p' && bm.to.r === seven) || (botMovingPiece === 'P' && bm.to.r === zero);
-if (isBotPromo) botSanBase += '=Q';
-if (bd[bm.fr][bm.fc] === 'K') hasMoved['W_K'] = true;
-if (bd[bm.fr][bm.fc] === 'R' && bm.fr === seven && bm.fc === zero) hasMoved['W_R1'] = true;
-if (bd[bm.fr][bm.fc] === 'R' && bm.fr === seven && bm.fc === seven) hasMoved['W_R8'] = true;
-if (bd[bm.fr][bm.fc] === 'k') hasMoved['B_K'] = true;
-if (bd[bm.fr][bm.fc] === 'r' && bm.fr === zero && bm.fc === zero) hasMoved['B_R1'] = true;
-if (bd[bm.fr][bm.fc] === 'r' && bm.fr === zero && bm.fc === seven) hasMoved['B_R8'] = true;
-if (bm.to.isENPassant) bd[bm.fr][bm.to.c] = '';
-var botFromCol = bm.fc;
-var botFromRow = bm.fr;
-bd[bm.to.r][bm.to.c] = bd[bm.fr][bm.fc];
-bd[bm.fr][bm.fc] = '';
-lastMove = { fr: botFromRow, fc: botFromCol, tr: bm.to.r, tc: bm.to.c };
-halfMoves = (botMovingPiece === 'p' || botMovingPiece === 'P' || botIsCapture) ? 0 : halfMoves + 1;
-if (bd[bm.to.r][bm.to.c] === 'p' && bm.to.r === seven) bd[bm.to.r][bm.to.c] = 'q';
-if (bd[bm.to.r][bm.to.c] === 'P' && bm.to.r === zero) bd[bm.to.r][bm.to.c] = 'Q';
-if ((bd[bm.to.r][bm.to.c] === 'K' || bd[bm.to.r][bm.to.c] === 'k') && Math.abs(bm.to.c - botFromCol) === two) {
-if (bm.to.c === six) {
-bd[bm.to.r].splice(five, 1, bd[bm.to.r][seven]);
-bd[bm.to.r].splice(seven, 1, '');
-}
-if (bm.to.c === two) {
-bd[bm.to.r].splice(three, 1, bd[bm.to.r][zero]);
-bd[bm.to.r].splice(zero, 1, '');
-}
-}
-epSquare = ((bd[bm.to.r][bm.to.c] === 'p' || bd[bm.to.r][bm.to.c] === 'P') && Math.abs(bm.to.r - botFromRow) === two) ? { r: (botFromRow + bm.to.r) / two, c: bm.to.c } : null;
-var playerColor = document.getElementById('pColor').value;
-finalizeSAN(botSanBase, playerColor);
-saveState();
-turn = playerColor;
-endState(playerColor);
-draw();
-}
-function handlePromoSelection(pieceType) {
-if (!window.pendingPromo) return;
-var r = window.pendingPromo.row;
-var c = window.pendingPromo.col;
-var cl = window.pendingPromo.color;
-var sanBase = window.pendingPromo.sanPrefix + '=' + pieceType.toUpperCase();
-bd[r][c] = cl === 'W' ? pieceType.toUpperCase() : pieceType.toLowerCase();
-document.getElementById('promoModal').style.display = 'none';
-window.pendingPromo = null;
-epSquare = null;
-var nextColor = cl === 'W' ? 'B' : 'W';
+            if (validBook.length > zero) {
+                bm = validBook[Math.floor(Math.random() * validBook.length)];
+            }
+        }
+
+        if (!bm) {
+            var bestEvaluatedMoves = [];
+            for (var d = 1; d <= maxDepth; d++) {
+                var currentDepthMoves = [];
+                for (var i = 0; i < topMoves.length; i++) {
+                    var m = topMoves[i];
+                    var uData = makeSimMove(simBoard, m);
+                    var baseValue = minimax(simBoard, d - 1, -Infinity, Infinity, botColor === 'W');
+                    unmakeSimMove(simBoard, m, uData);
+                    if (timeUp) break;
+                    currentDepthMoves.push({ move: m, score: baseValue });
+                }
+                if (timeUp) break;
+                currentDepthMoves.sort(function(a, b) {
+                    return botColor === 'B' ? b.score - a.score : a.score - b.score;
+                });
+                bestEvaluatedMoves = currentDepthMoves;
+                topMoves = bestEvaluatedMoves.map(function(item) { return item.move; });
+            }
+            if (bestEvaluatedMoves.length === 0) {
+                bestEvaluatedMoves = [{ move: topMoves[zero], score: evalBoard(simBoard) }];
+            }
+            var roll = Math.random() * 100;
+            var targetIndex = 0;
+            if (isHard) {
+                targetIndex = 0;
+            } else if (diffSetting === "1200") {
+                if (roll > 92 && bestEvaluatedMoves.length > 1) targetIndex = 1;
+            } else if (diffSetting === "800") {
+                if (roll > 82 && bestEvaluatedMoves.length > 1) {
+                    targetIndex = Math.min(Math.floor(Math.random() * two) + 1, bestEvaluatedMoves.length - 1);
+                }
+            }
+            bm = bestEvaluatedMoves[targetIndex].move;
+        }
+
+        var botMovingPiece = bd[bm.fr][bm.fc];
+        var botIsCapture = (bd[bm.to.r][bm.to.c] !== '' || bm.to.isENPassant);
+        var botSanBase = buildSANPrefix(bm.fr, bm.fc, bm.to.r, bm.to.c, bm.to);
+        var isBotPromo = (botMovingPiece === 'p' && bm.to.r === seven) || (botMovingPiece === 'P' && bm.to.r === zero);
+        if (isBotPromo) botSanBase += '=Q';
+
+        if (bd[bm.fr][bm.fc] === 'K') hasMoved['W_K'] = true;
+        if (bd[bm.fr][bm.fc] === 'R' && bm.fr === seven && bm.fc === zero) hasMoved['W_R1'] = true;
+        if (bd[bm.fr][bm.fc] === 'R' && bm.fr === seven && bm.fc === seven) hasMoved['W_R8'] = true;
+        if (bd[bm.fr][bm.fc] === 'k') hasMoved['B_K'] = true;
+        if (bd[bm.fr][bm.fc] === 'r' && bm.fr === zero && bm.fc === zero) hasMoved['B_R1'] = true;
+        if (bd[bm.fr][bm.fc] === 'r' && bm.fr === zero && bm.fc === seven) hasMoved['B_R8'] = true;
+
+        if (bm.to.isENPassant) bd[bm.fr][bm.to.c] = '';
+        var botFromCol = bm.fc;
+        var botFromRow = bm.fr;
+        bd[bm.to.r][bm.to.c] = bd[bm.fr][bm.fc];
+        bd[bm.fr][bm.fc] = '';
+        lastMove = { fr: botFromRow, fc: botFromCol, tr: bm.to.r, tc: bm.to.c };
+        halfMoves = (botMovingPiece === 'p' || botMovingPiece === 'P' || botIsCapture) ? 0 : halfMoves + 1;
+
+        if (bd[bm.to.r][bm.to.c] === 'p' && bm.to.r === seven) bd[bm.to.r][bm.to.c] = 'q';
+        if (bd[bm.to.r][bm.to.c] === 'P' && bm.to.r === zero) bd[bm.to.r][bm.to.c] = 'Q';
+
+        if ((bd[bm.to.r][bm.to.c] === 'K' || bd[bm.to.r][bm.to.c] === 'k') && Math.abs(bm.to.c - botFromCol) === two) {
+            if (bm.to.c === six) {
+                bd[bm.to.r].splice(five, 1, bd[bm.to.r][seven]);
+                bd[bm.to.r].splice(seven, 1, '');
+            }
+            if (bm.to.c === two) {
+                bd[bm.to.r].splice(three, 1, bd[bm.to.r][zero]);
+                bd[bm.to.r].splice(zero, 1, '');
+            }
+        }
+
+        epSquare = ((bd[bm.to.r][bm.to.c] === 'p' || bd[bm.to.r][bm.to.c] === 'P') && Math.abs(bm.to.r - botFromRow) === two) ? { r: (botFromRow + bm.to.r) / two, c: bm.to.c } : null;
+        var playerColor = document.getElementById('pColor').value;
+        finalizeSAN(botSanBase, playerColor);
+        saveState();
+        turn = playerColor;
+        endState(playerColor);
+        draw();
+    }
+
+    function handlePromoSelection(pieceType) {
+        if (!window.pendingPromo) return;
+        var r = window.pendingPromo.row;
+        var c = window.pendingPromo.col;
+        var cl = window.pendingPromo.color;
+        var sanBase = window.pendingPromo.sanPrefix + '=' + pieceType.toUpperCase();
+        bd[r][c] = cl === 'W' ? pieceType.toUpperCase() : pieceType.toLowerCase();
+        document.getElementById('promoModal').style.display = 'none';
+        window.pendingPromo = null;
+        epSquare = null;
+      var nextColor = cl === 'W' ? 'B' : 'W';
 finalizeSAN(sanBase, nextColor);
 saveState();
 if (endState(nextColor)) { draw(); return; }
@@ -1106,21 +1052,18 @@ if (JSON.stringify(hBoard) === currentStr) repeatCount++;
 }
 if (repeatCount >= 3) {
 document.getElementById('msg').innerText = "Draw by Threefold Repetition!";
-currentEval = 0;
 gameResult = '1/2-1/2';
 turn = 'E';
 return true;
 }
 if (halfMoves >= 100) {
 document.getElementById('msg').innerText = "Draw by 50-Move Rule!";
-currentEval = 0;
 gameResult = '1/2-1/2';
 turn = 'E';
 return true;
 }
 if (isInsufficientMaterial()) {
 document.getElementById('msg').innerText = "Draw by Insufficient Material!";
-currentEval = 0;
 gameResult = '1/2-1/2';
 turn = 'E';
 return true;
@@ -1140,11 +1083,9 @@ var colorLabel = playerColor === 'W' ? 'White' : 'Black';
 if (!any) {
 if (check(cl, bd, null)) {
 box.innerText = cl === playerColor ? "Checkmate! Bot wins." : "Checkmate! You win!";
-currentEval = (cl === 'W') ? 999999 : -999999;
 gameResult = (cl === 'W') ? '0-1' : '1-0';
 } else {
 box.innerText = "Draw / Stalemate!";
-currentEval = 0;
 gameResult = '1/2-1/2';
 }
 turn = 'E';
@@ -1167,7 +1108,6 @@ epSquare = curSnap.epSquare || null;
 moveHistory = curSnap.moveHistory ? curSnap.moveHistory.slice() : [];
 lastMove = curSnap.lastMove || null;
 halfMoves = curSnap.halfMoves || 0;
-currentEval = curSnap.evalScore || 0;
 gameResult = '';
 sel = null; moves = []; turn = playerColor;
 renderMoveList(); endState(playerColor); draw();
@@ -1183,7 +1123,6 @@ epSquare = prev.epSquare || null;
 moveHistory = prev.moveHistory ? prev.moveHistory.slice() : [];
 lastMove = prev.lastMove || null;
 halfMoves = prev.halfMoves || 0;
-currentEval = prev.evalScore || 0;
 gameResult = '';
 hasMoved = {
 'W_K': false, 'W_R1': false, 'W_R8': false,
@@ -1209,7 +1148,6 @@ boardHistory = [];
 moveHistory = [];
 lastMove = null;
 halfMoves = 0;
-currentEval = 0;
 gameResult = '*';
 saveState();
 epSquare = null;
