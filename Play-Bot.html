@@ -116,31 +116,7 @@
             undoBtn.style.display = (diff === 'extra') ? 'none' : 'block';
         }
     }
-    function updateEvalBar() {
-        var pColor = document.getElementById('pColor').value;
-        var isBlack = (pColor === 'B');
-        var evalWrap = document.getElementById('evalWrap');
-        var evalFill = document.getElementById('evalFill');
-        if (!evalWrap || !evalFill) return;
-
-        var whiteAdv = -currentEval;
-        var whitePct = 50 + 50 * (2 / (1 + Math.exp(-whiteAdv / 350)) - 1);
-        whitePct = Math.max(4, Math.min(96, whitePct));
-
-        if (currentEval <= -90000) whitePct = 100;
-        if (currentEval >= 90000) whitePct = 0;
-
-        if (!isBlack) {
-            evalWrap.style.backgroundColor = '#151518';
-            evalFill.style.backgroundColor = '#f0d9b5';
-            evalFill.style.height = whitePct.toFixed(1) + '%';
-        } else {
-            evalWrap.style.backgroundColor = '#f0d9b5';
-            evalFill.style.backgroundColor = '#151518';
-            evalFill.style.height = (100 - whitePct).toFixed(1) + '%';
-        }
-    }
-
+   
     function buildSANPrefix(fr, fc, tr, tc, moveObj) {
         var piece = bd[fr][fc];
         var upper = piece.toUpperCase();
@@ -498,7 +474,7 @@ if (m.isENPassant) b[r][m.c] = epCaptured;
 }
 return legal;
 }
-      function draw() {
+         function draw() {
         var t = document.getElementById('tbl');
         if (!t) return;
         t.innerHTML = '';
@@ -615,8 +591,37 @@ return legal;
             }
             t.appendChild(tr);
         }
-        updateEvalBar();
+
+        // Pure Material + Checkmate Eval Bar
+        var evalWrap = document.getElementById('evalWrap');
+        var evalFill = document.getElementById('evalFill');
+        if (evalWrap && evalFill) {
+            var pVals = { 'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'p': -1, 'n': -3, 'b': -3, 'r': -5, 'q': -9 };
+            var matDiff = 0;
+            for (var r = 0; r < 8; r++) {
+                for (var c = 0; c < 8; c++) {
+                    if (pVals[bd[r][c]]) matDiff += pVals[bd[r][c]];
+                }
+            }
+            var whitePct = 50 + 50 * (2 / (1 + Math.exp(-matDiff / 4.0)) - 1);
+            whitePct = Math.max(5, Math.min(95, whitePct));
+
+            if (gameResult === '1-0') whitePct = 100;
+            else if (gameResult === '0-1') whitePct = 0;
+            else if (gameResult === '1/2-1/2') whitePct = 50;
+
+            if (!flip) {
+                evalWrap.style.backgroundColor = '#151518';
+                evalFill.style.backgroundColor = '#f0d9b5';
+                evalFill.style.height = whitePct.toFixed(1) + '%';
+            } else {
+                evalWrap.style.backgroundColor = '#f0d9b5';
+                evalFill.style.backgroundColor = '#151518';
+                evalFill.style.height = (100 - whitePct).toFixed(1) + '%';
+            }
+        }
     }
+
 
     function clickSq(r, c) {
         var playerColor = document.getElementById('pColor').value;
