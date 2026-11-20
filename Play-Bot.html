@@ -207,15 +207,15 @@
             if (b[0][3] !== 'q' && (b[0][1] === 'n' || b[0][2] === 'b' || b[0][5] === 'b' || b[0][6] === 'n')) score -= 25;
             if (b[7][3] !== 'Q' && (b[7][1] === 'N' || b[7][2] === 'B' || b[7][5] === 'B' || b[7][6] === 'N')) score += 25;
 
-            if (b[0][1] === 'n') score -= 12;
-            if (b[0][6] === 'n') score -= 12;
-            if (b[0][2] === 'b') score -= 12;
-            if (b[0][5] === 'b') score -= 12;
+            if (b[0][1] === 'n') score -= 6;
+            if (b[0][6] === 'n') score -= 6;
+            if (b[0][2] === 'b') score -= 6;
+            if (b[0][5] === 'b') score -= 6;
 
-            if (b[7][1] === 'N') score += 12;
-            if (b[7][6] === 'N') score += 12;
-            if (b[7][2] === 'B') score += 12;
-            if (b[7][5] === 'B') score += 12;
+            if (b[7][1] === 'N') score += 6;
+            if (b[7][6] === 'N') score += 6;
+            if (b[7][2] === 'B') score += 6;
+            if (b[7][5] === 'B') score += 6;
         } else {
             var bKr = (bKIdx / 8) | 0, bKc = bKIdx & 7;
             var wKr = (wKIdx / 8) | 0, wKc = wKIdx & 7;
@@ -980,8 +980,66 @@ return isMax ? alpha : beta;
         topMoves.sort(function(a, b) { return b.order - a.order; });
         if (topMoves.length === 0) return;
 
-               var bm = null;
-        var isEarlyOpening = moveHistory.length < 4;
+              
+                var bm = null;
+        var isEarlyOpening = moveHistory.length < 6;
+
+        // Classic opening moves (only boosted if minimax confirms they are safe!)
+        var bookMoves = [];
+        if (moveHistory.length === 0) {
+            // Bot is White, Move 1: 1. e4, 1. d4, 1. c4, 1. Nf3
+            bookMoves = [
+                { fr: 6, fc: 4, tr: 4, tc: 4 },
+                { fr: 6, fc: 3, tr: 4, tc: 3 },
+                { fr: 6, fc: 2, tr: 4, tc: 2 },
+                { fr: 7, fc: 6, tr: 5, tc: 5 }
+            ];
+        } else if (moveHistory.length === 1) {
+            // Bot is Black, Move 1: respond dynamically to White's first move
+            if (bd[4][4] === 'P') {
+                // Against 1. e4 -> 1...e5, 1...c5 (Sicilian), 1...e6 (French), 1...c6 (Caro-Kann)
+                bookMoves = [
+                    { fr: 1, fc: 4, tr: 3, tc: 4 },
+                    { fr: 1, fc: 2, tr: 3, tc: 2 },
+                    { fr: 1, fc: 4, tr: 2, tc: 4 },
+                    { fr: 1, fc: 2, tr: 2, tc: 2 }
+                ];
+            } else {
+                // Against 1. d4 / c4 / Nf3 -> 1...d5, 1...Nf6, 1...e6
+                bookMoves = [
+                    { fr: 1, fc: 3, tr: 3, tc: 3 },
+                    { fr: 0, fc: 6, tr: 2, tc: 5 },
+                    { fr: 1, fc: 4, tr: 2, tc: 4 }
+                ];
+            }
+        }
+        var chosenBook = bookMoves.length > 0 ? bookMoves[Math.floor(Math.random() * bookMoves.length)] : null;
+
+        var bestEvaluatedMoves = [];
+        for (var d = 1; d <= maxDepth; d++) {
+            var currentDepthMoves = [];
+            for (var i = 0; i < topMoves.length; i++) {
+                var m = topMoves[i];
+                var uData = makeSimMove(simBoard, m);
+                var baseValue = minimax(simBoard, d - 1, -Infinity, Infinity, botColor === 'W');
+                unmakeSimMove(simBoard, m, uData);
+                if (timeUp) break;
+
+                var bookBonus = 0;
+                if (chosenBook && m.fr === chosenBook.fr && m.fc === chosenBook.fc && m.to.r === chosenBook.tr && m.to.c === chosenBook.tc) {
+                    bookBonus = botColor === 'B' ? 28 : -28;
+                }
+                var varietyJitter = isEarlyOpening ? (Math.random() * 14 - 7) : 0;
+                currentDepthMoves.push({ move: m, score: baseValue + bookBonus + varietyJitter });
+            }
+            if (timeUp) break;
+            currentDepthMoves.sort(function(a, b) {
+                return botColor === 'B' ? b.score - a.score : a.score - b.score;
+            });
+            bestEvaluatedMoves = currentDepthMoves;
+            topMoves = bestEvaluatedMoves.map(function(item) { return item.move; });
+        }
+
 
         var bestEvaluatedMoves = [];
         for (var d = 1; d <= maxDepth; d++) {
