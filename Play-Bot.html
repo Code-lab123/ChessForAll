@@ -172,7 +172,7 @@
             undoBtn.style.display = (diff === 'extra') ? 'none' : 'block';
         }
     }
-       function evalBoard(b) {
+           function evalBoard(b) {
         var score = 0;
         var phase = 0;
         var bKIdx = 4, wKIdx = 60;
@@ -185,52 +185,38 @@
                 var idx = r * 8 + c;
                 var flipIdx = (7 - r) * 8 + c;
 
-                if (p === 'p') {
-                    score += 100 + pPST[idx];
-                } else if (p === 'P') {
-                    score -= 100 + pPST[flipIdx];
-                } else if (p === 'n') {
-                    score += 300 + nPST[idx];
-                    phase += 1;
-                } else if (p === 'N') {
-                    score -= 300 + nPST[flipIdx];
-                    phase += 1;
-                } else if (p === 'b') {
-                    score += 315 + bPST[idx];
-                    phase += 1;
-                } else if (p === 'B') {
-                    score -= 315 + bPST[flipIdx];
-                    phase += 1;
-                } else if (p === 'r') {
-                    score += 500 + rPST[idx];
-                    phase += 2;
-                } else if (p === 'R') {
-                    score -= 500 + rPST[flipIdx];
-                    phase += 2;
-                } else if (p === 'q') {
-                    score += 900 + qPST[idx];
-                    phase += 4;
-                } else if (p === 'Q') {
-                    score -= 900 + qPST[flipIdx];
-                    phase += 4;
-                } else if (p === 'k') {
-                    bKIdx = idx;
-                } else if (p === 'K') {
-                    wKIdx = flipIdx;
-                }
+                if (p === 'p') { score += 100 + pPST[idx]; }
+                else if (p === 'P') { score -= 100 + pPST[flipIdx]; }
+                else if (p === 'n') { score += 300 + nPST[idx]; phase += 1; }
+                else if (p === 'N') { score -= 300 + nPST[flipIdx]; phase += 1; }
+                else if (p === 'b') { score += 315 + bPST[idx]; phase += 1; }
+                else if (p === 'B') { score -= 315 + bPST[flipIdx]; phase += 1; }
+                else if (p === 'r') { score += 500 + rPST[idx]; phase += 2; }
+                else if (p === 'R') { score -= 500 + rPST[flipIdx]; phase += 2; }
+                else if (p === 'q') { score += 900 + qPST[idx]; phase += 4; }
+                else if (p === 'Q') { score -= 900 + qPST[flipIdx]; phase += 4; }
+                else if (p === 'k') { bKIdx = idx; }
+                else if (p === 'K') { wKIdx = flipIdx; }
             }
         }
 
-        // Apply King safety in opening/middlegame, centralize in endgame
         if (phase > 6) {
             score += kMidPST[bKIdx];
             score -= kMidPST[wKIdx];
 
-            // Penalize early Queen development while minor pieces are still undeveloped
-            if (b[0][3] !== 'q' && (b[0][1] === 'n' || b[0][2] === 'b' || b[0][5] === 'b' || b[0][6] === 'n')) score -= 22;
-            if (b[7][3] !== 'Q' && (b[7][1] === 'N' || b[7][2] === 'B' || b[7][5] === 'B' || b[7][6] === 'N')) score += 22;
+            if (b[0][3] !== 'q' && (b[0][1] === 'n' || b[0][2] === 'b' || b[0][5] === 'b' || b[0][6] === 'n')) score -= 25;
+            if (b[7][3] !== 'Q' && (b[7][1] === 'N' || b[7][2] === 'B' || b[7][5] === 'B' || b[7][6] === 'N')) score += 25;
+
+            if (b[0][1] === 'n') score -= 12;
+            if (b[0][6] === 'n') score -= 12;
+            if (b[0][2] === 'b') score -= 12;
+            if (b[0][5] === 'b') score -= 12;
+
+            if (b[7][1] === 'N') score += 12;
+            if (b[7][6] === 'N') score += 12;
+            if (b[7][2] === 'B') score += 12;
+            if (b[7][5] === 'B') score += 12;
         } else {
-            // Endgame: reward centralizing the King
             var bKr = (bKIdx / 8) | 0, bKc = bKIdx & 7;
             var wKr = (wKIdx / 8) | 0, wKc = wKIdx & 7;
             score -= (Math.abs(3.5 - bKr) + Math.abs(3.5 - bKc)) * 6;
@@ -239,6 +225,7 @@
 
         return score;
     }
+
 
     function buildSANPrefix(fr, fc, tr, tc, moveObj) {
         var piece = bd[fr][fc];
@@ -808,27 +795,31 @@ return legal;
             }
         }
 
-        function getFastMoves(cl, b, inSim, capturesOnly) {
+                function getFastMoves(cl, b, inSim, capturesOnly) {
             var list = [];
             var colorMap = cl === 'W' ? isWhiteMap : isBlackMap;
+            var backRank = cl === 'W' ? 7 : 0;
             for (var r = 0; r < eight; r++) {
                 var row = b[r];
                 for (var c = 0; c < eight; c++) {
                     var piece = row[c];
                     if (piece !== '' && colorMap[piece]) {
-var pseudo = getPseudo(r, c, b, true, inSim);
-for (var i = 0; i < pseudo.length; i++) {
-var to = pseudo[i];
-var target = b[to.r][to.c];
-if (capturesOnly && target === '' && !to.isENPassant) continue;
-var mvvScore = target !== '' ? (vals[target] * 10 - vals[piece]) : 0;
-list.push({ fr: r, fc: c, to: to, order: mvvScore });
-}
-}
-}
-}
-return list.sort(function(a, b) { return b.order - a.order; });
-}
+                        var pseudo = getPseudo(r, c, b, true, inSim);
+                        for (var i = 0; i < pseudo.length; i++) {
+                            var to = pseudo[i];
+                            var target = b[to.r][to.c];
+                            if (capturesOnly && target === '' && !to.isENPassant) continue;
+                            var orderScore = target !== '' ? (vals[target] * 10 - vals[piece]) : 0;
+                            if (to.isCastle) orderScore += 120;
+                            else if (r === backRank && (piece === 'N' || piece === 'n' || piece === 'B' || piece === 'b')) orderScore += 40;
+                            list.push({ fr: r, fc: c, to: to, order: orderScore });
+                        }
+                    }
+                }
+            }
+            return list.sort(function(a, b) { return b.order - a.order; });
+        }
+
 function makeSimMove(b, m) {
 var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
 var origPiece = b[fr][fc];
