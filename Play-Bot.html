@@ -10,50 +10,72 @@
 
 </head>
 <body>
-<div style="text-align: center; max-width: 400px; margin: 0 auto; color: #fff; font-family: sans-serif; background-color: #1e1e24; padding: 15px; border-radius: 8px; position: relative; box-sizing: border-box;">
-    <div id="msg" style="font-weight: bold; margin-bottom: 10px; font-size: 16px; font-family: sans-serif;">Your Turn (White)</div>
-    <div style="margin-bottom: 10px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+<div style="display: flex; justify-content: center; align-items: stretch; gap: 12px; max-width: 630px; margin: 0 auto; font-family: sans-serif; flex-wrap: wrap;">
+    <!-- Left Side: Bot Trash-Talk & Reaction Panel -->
+    <div style="width: 205px; background-color: #1e1e24; color: #fff; border-radius: 8px; padding: 14px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid #3c4043;">
         <div>
-            <label for="diff" style="font-size: 13px; font-weight: bold; margin-right: 4px;">Difficulty:</label>
-            <select id="diff" style="padding: 4px 6px; border-radius: 4px; border: 1px solid #3c4043; background: #2b2b36; color: #fff; font-weight: bold; cursor: pointer; font-size: 13px;">
-                <option value="800">Easy (800)</option>
-                <option value="1200">Medium (1200)</option>
-                <option value="1600" selected>Hard (1600)</option>
-                <option value="3200">Unbeatable (3200)</option>
-            </select>
+            <div style="display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #3c4043; padding-bottom: 10px; margin-bottom: 10px;">
+                <div id="botAvatar" style="font-size: 26px; background: #2b2b36; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">🤖</div>
+                <div style="text-align: left;">
+                    <div style="font-weight: bold; font-size: 14px; color: #7fffd4;">Club Bot</div>
+                    <div id="botMood" style="font-size: 11px; color: #aaa;">Ready to crush</div>
+                </div>
+            </div>
+            <div id="trashTalkBox" style="background: #2b2b36; border-left: 3px solid #7fffd4; border-radius: 4px; padding: 10px; font-size: 13px; line-height: 1.45; text-align: left; color: #f0f0f0; min-height: 95px;">
+                "Go ahead, make your move. Try not to blunder on move 10."
+            </div>
         </div>
-        <div>
-            <label for="pColor" style="font-size: 13px; font-weight: bold; margin-right: 4px;">Play As:</label>
-            <select id="pColor" onchange="changeColor()" style="padding: 4px 6px; border-radius: 4px; border: 1px solid #3c4043; background: #2b2b36; color: #fff; font-weight: bold; cursor: pointer; font-size: 13px;">
-                <option value="W" selected>White</option>
-                <option value="B">Black</option>
-            </select>
-        </div>
-    </div>
-
-    <div id="promoModal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); border-radius: 8px; flex-direction: column; justify-content: center; align-items: center; z-index: 100;">
-        <div style="font-weight: bold; margin-bottom: 15px; font-size: 18px;">Promote Your Pawn:</div>
-        <div style="display: flex; gap: 10px;">
-            <button onclick="handlePromoSelection('Q')" style="font-size: 24px; width: 50px; height: 50px; cursor: pointer; border-radius: 4px; border: none; background: #3c4043; color: white;">♕</button>
-            <button onclick="handlePromoSelection('R')" style="font-size: 24px; width: 50px; height: 50px; cursor: pointer; border-radius: 4px; border: none; background: #3c4043; color: white;">♖</button>
-            <button onclick="handlePromoSelection('B')" style="font-size: 24px; width: 50px; height: 50px; cursor: pointer; border-radius: 4px; border: none; background: #3c4043; color: white;">♗</button>
-            <button onclick="handlePromoSelection('N')" style="font-size: 24px; width: 50px; height: 50px; cursor: pointer; border-radius: 4px; border: none; background: #3c4043; color: white;">♘</button>
+        <div id="evalReadout" style="margin-top: 12px; font-size: 11px; color: #999; text-align: left; background: #16161b; padding: 6px 8px; border-radius: 4px; font-family: monospace;">
+            Eval: 0.00 (Even)
         </div>
     </div>
 
-    <div style="display: flex; justify-content: center; align-items: stretch;">
-        <table id="tbl" style="border-collapse: collapse; margin: 0; border: 3px solid #3c4043; width: 360px; height: 360px; table-layout: fixed;"></table>
-    </div>
+    <!-- Right Side: Your Existing Chess Board -->
+    <div style="text-align: center; width: 400px; color: #fff; font-family: sans-serif; background-color: #1e1e24; padding: 15px; border-radius: 8px; position: relative; box-sizing: border-box;">
+        <div id="msg" style="font-weight: bold; margin-bottom: 10px; font-size: 16px; font-family: sans-serif;">Your Turn (White)</div>
+        <div style="margin-bottom: 10px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+            <div>
+                <label for="diff" style="font-size: 13px; font-weight: bold; margin-right: 4px;">Difficulty:</label>
+                <select id="diff" style="padding: 4px 6px; border-radius: 4px; border: 1px solid #3c4043; background: #2b2b36; color: #fff; font-weight: bold; cursor: pointer; font-size: 13px;">
+                    <option value="800">Easy (800)</option>
+                    <option value="1200">Medium (1200)</option>
+                    <option value="1600" selected>Hard (1600)</option>
+                    <option value="3200">Unbeatable (3200)</option>
+                </select>
+            </div>
+            <div>
+                <label for="pColor" style="font-size: 13px; font-weight: bold; margin-right: 4px;">Play As:</label>
+                <select id="pColor" onchange="changeColor()" style="padding: 4px 6px; border-radius: 4px; border: 1px solid #3c4043; background: #2b2b36; color: #fff; font-weight: bold; cursor: pointer; font-size: 13px;">
+                    <option value="W" selected>White</option>
+                    <option value="B">Black</option>
+                </select>
+            </div>
+        </div>
 
-    <div id="pgnBox" style="margin-top: 8px; background: #2b2b36; border: 1px solid #3c4043; border-radius: 4px; padding: 6px 8px; height: 38px; overflow-y: auto; text-align: left; font-size: 12px; color: #dcdcdc; line-height: 1.4; font-family: monospace;">Moves will appear here...</div>
+        <div id="promoModal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); border-radius: 8px; flex-direction: column; justify-content: center; align-items: center; z-index: 100;">
+            <div style="font-weight: bold; margin-bottom: 15px; font-size: 18px;">Promote Your Pawn:</div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="handlePromoSelection('Q')" style="font-size: 24px; width: 50px; height: 50px; cursor: pointer; border-radius: 4px; border: none; background: #3c4043; color: white;">♕</button>
+                <button onclick="handlePromoSelection('R')" style="font-size: 24px; width: 50px; height: 50px; cursor: pointer; border-radius: 4px; border: none; background: #3c4043; color: white;">♖</button>
+                <button onclick="handlePromoSelection('B')" style="font-size: 24px; width: 50px; height: 50px; cursor: pointer; border-radius: 4px; border: none; background: #3c4043; color: white;">♗</button>
+                <button onclick="handlePromoSelection('N')" style="font-size: 24px; width: 50px; height: 50px; cursor: pointer; border-radius: 4px; border: none; background: #3c4043; color: white;">♘</button>
+            </div>
+        </div>
 
-    <div style="display: flex; gap: 6px; margin-top: 8px;">
-        <button id="undoBtn" onclick="undo()" style="flex: 1; padding: 8px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #555555; color: white; border: none; border-radius: 4px;">Undo Move</button>
-        <button onclick="rst()" style="flex: 1; padding: 8px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #007acc; color: white; border: none; border-radius: 4px;">Restart Game</button>
-    </div>
-    <div style="display: flex; gap: 6px; margin-top: 6px;">
-        <button id="copyPgnBtn" onclick="copyExport('pgn')" style="flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #2b2b36; color: #7fffd4; border: 1px solid #3c4043; border-radius: 4px;">Copy PGN (Analysis)</button>
-        <button id="copyFenBtn" onclick="copyExport('fen')" style="flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #2b2b36; color: #7fffd4; border: 1px solid #3c4043; border-radius: 4px;">Copy FEN</button>
+        <div style="display: flex; justify-content: center; align-items: stretch;">
+            <table id="tbl" style="border-collapse: collapse; margin: 0; border: 3px solid #3c4043; width: 360px; height: 360px; table-layout: fixed;"></table>
+        </div>
+
+        <div id="pgnBox" style="margin-top: 8px; background: #2b2b36; border: 1px solid #3c4043; border-radius: 4px; padding: 6px 8px; height: 38px; overflow-y: auto; text-align: left; font-size: 12px; color: #dcdcdc; line-height: 1.4; font-family: monospace;">Moves will appear here...</div>
+
+        <div style="display: flex; gap: 6px; margin-top: 8px;">
+            <button id="undoBtn" onclick="undo()" style="flex: 1; padding: 8px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #555555; color: white; border: none; border-radius: 4px;">Undo Move</button>
+            <button onclick="rst()" style="flex: 1; padding: 8px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #007acc; color: white; border: none; border-radius: 4px;">Restart Game</button>
+        </div>
+        <div style="display: flex; gap: 6px; margin-top: 6px;">
+            <button id="copyPgnBtn" onclick="copyExport('pgn')" style="flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #2b2b36; color: #7fffd4; border: 1px solid #3c4043; border-radius: 4px;">Copy PGN (Analysis)</button>
+            <button id="copyFenBtn" onclick="copyExport('fen')" style="flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #2b2b36; color: #7fffd4; border: 1px solid #3c4043; border-radius: 4px;">Copy FEN</button>
+        </div>
     </div>
 </div>
 
@@ -844,6 +866,109 @@ return legal;
             }
         }
     }
+       var prevBotScore = 0;
+    function updateTrashTalk(botScore, botColor, eventType) {
+        var box = document.getElementById('trashTalkBox');
+        var mood = document.getElementById('botMood');
+        var avatar = document.getElementById('botAvatar');
+        var evalBox = document.getElementById('evalReadout');
+        if (!box) return;
+
+        var perspectiveScore = (botColor === 'B') ? botScore : -botScore;
+        var swing = perspectiveScore - prevBotScore;
+        prevBotScore = perspectiveScore;
+
+        if (evalBox) {
+            var whitePawns = (-botScore / 100).toFixed(2);
+            if (Math.abs(botScore) > 90000) {
+                evalBox.innerText = botScore > 0 ? 'Eval: Black Mate' : 'Eval: White Mate';
+            } else {
+                var sign = whitePawns > 0 ? '+' : '';
+                evalBox.innerText = 'Eval: ' + sign + whitePawns;
+            }
+        }
+
+        function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+        var lines = {
+            mateWin: [
+                '"Checkmate. Honestly, I expected more of a warm-up."',
+                '"Game over. Did you even look at the whole board?"',
+                '"That’s mate. Hit Restart whenever you’re ready to lose again."',
+                '"I solved that mating net five moves ago. Good effort, though."'
+            ],
+            mateLose: [
+                '"Okay, no way you found that without an engine open."',
+                '"Enjoy it—that’s the last time I go easy on you."'
+            ],
+            forcedMate: [
+                '"Forced mate is on the board. You can resign anytime."',
+                '"There are zero escape squares left. Just accept it."',
+                '"My silicon brain already wrapped this up. Watch."'
+            ],
+            blunder: [
+                '"Wait… you actually meant to play that?"',
+                '"Free material! Do you always donate pieces like this?"',
+                '"Yikes. My evaluation bar just went through the roof."',
+                '"I don’t even have to try when you hand me the game like that."'
+            ],
+            undo: [
+                '"Hitting Undo? Yeah, I’d take that move back too."',
+                '"Time travel won’t save your position."'
+            ],
+            winning: [
+                '"Up material and squeezing every square. Pure pain from here."',
+                '"Every piece trade just brings you closer to defeat."',
+                '"You’re completely tied up. Nowhere to run."'
+            ],
+            losing: [
+                '"Hold on… who taught you how to play like this?"',
+                '"Don’t celebrate yet. One slip and I’m swindling this whole game."'
+            ],
+            normal: [
+                '"Cute move. Completely harmless, though."',
+                '"I calculated ten moves deep while you were still blinking."',
+                '"You’re surviving… barely."',
+                '"Solid, I guess. Let’s see how long you hold out."',
+                '"Are you guessing, or is there an actual plan behind that?"',
+                '"Tick-tock. The pressure is only going up from here."'
+            ],
+            repeatDraw: [
+                '"Threefold repetition! Nice try—I actually know the rulebook."',
+                '"Bailing out with a repetition draw? Smartest thing you’ve done all game."'
+            ]
+        };
+
+        if (eventType === 'mateWin') {
+            avatar.innerText = '👑'; mood.innerText = 'Victory';
+            box.innerText = pick(lines.mateWin);
+        } else if (eventType === 'mateLose') {
+            avatar.innerText = '😱'; mood.innerText = 'Shocked';
+            box.innerText = pick(lines.mateLose);
+        } else if (eventType === 'repeatDraw') {
+            avatar.innerText = '🧐'; mood.innerText = 'Rulebook Expert';
+            box.innerText = pick(lines.repeatDraw);
+        } else if (eventType === 'undo') {
+            avatar.innerText = '🙄'; mood.innerText = 'Unimpressed';
+            box.innerText = pick(lines.undo);
+        } else if (perspectiveScore > 90000) {
+            avatar.innerText = '😈'; mood.innerText = 'Smelling Checkmate';
+            box.innerText = pick(lines.forcedMate);
+        } else if (swing >= 180) {
+            avatar.innerText = '😂'; mood.innerText = 'Laughing at Blunder';
+            box.innerText = pick(lines.blunder);
+        } else if (perspectiveScore >= 250) {
+            avatar.innerText = '😎'; mood.innerText = 'Crushing';
+            box.innerText = pick(lines.winning);
+        } else if (perspectiveScore <= -250) {
+            avatar.innerText = '😤'; mood.innerText = 'Sweating';
+            box.innerText = pick(lines.losing);
+        } else {
+            avatar.innerText = '🤖'; mood.innerText = 'Calculating...';
+            box.innerText = pick(lines.normal);
+        }
+    }
+
 
                function bot() {
         var diffSetting = document.getElementById('diff').value;
@@ -1410,6 +1535,8 @@ finalizeSAN(botSanBase, playerColor);
 saveState();
 turn = playerColor;
 endState(playerColor);
+updateTrashTalk(bestEvaluatedMoves[targetIndex].score, botColor, 'move');
+
 draw();
 }
   
@@ -1456,6 +1583,8 @@ var hBoard = Array.isArray(entry) ? entry : entry.bd;
 if (JSON.stringify(hBoard) === currentStr) repeatCount++;
 }
 if (repeatCount >= 3) {
+              updateTrashTalk(0, document.getElementById('pColor').value === 'W' ? 'B' : 'W', 'repeatDraw');
+
 document.getElementById('msg').innerText = "Draw by Threefold Repetition!";
 gameResult = '1/2-1/2';
 turn = 'E';
@@ -1487,6 +1616,8 @@ var playerColor = document.getElementById('pColor').value;
 var colorLabel = playerColor === 'W' ? 'White' : 'Black';
 if (!any) {
 if (check(cl, bd, null)) {
+              updateTrashTalk(0, cl === playerColor ? 'B' : 'W', cl === playerColor ? 'mateWin' : 'mateLose');
+
 box.innerText = cl === playerColor ? "Checkmate! Bot wins." : "Checkmate! You win!";
 gameResult = (cl === 'W') ? '0-1' : '1-0';
 } else {
@@ -1560,7 +1691,17 @@ document.getElementById('pColor').disabled = false;
 document.getElementById('diff').disabled = false;
 document.getElementById('pColor').value = 'W';
 document.getElementById('msg').innerText = "Your Turn (White)";
+          updateTrashTalk(-prevBotScore, playerColor === 'W' ? 'B' : 'W', 'undo');
+
 renderMoveList();
+          prevBotScore = 0;
+        if (document.getElementById('trashTalkBox')) {
+            document.getElementById('trashTalkBox').innerText = '"Fresh board. Let\'s see how long you last this time."';
+            document.getElementById('botAvatar').innerText = '🤖';
+            document.getElementById('botMood').innerText = 'Ready to crush';
+            document.getElementById('evalReadout').innerText = 'Eval: 0.00';
+        }
+
 draw();
 }
 if (document.readyState === 'loading') {
