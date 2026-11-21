@@ -861,20 +861,22 @@ return legal;
         var killers = [];
         for (var k = 0; k < 24; k++) killers[k] = [null, null];
 
-        function boardKey(b, isMax) {
+               function boardKey(b, isMax) {
             var s = isMax ? 'B:' : 'W:';
-for (var r = 0; r < 8; r++) {
-var row = b[r];
-s += row[0] + row[1] + row[2] + row[3] + row[4] + row[5] + row[6] + row[7] + '/';
-}
-return s;
-}
-function getFastMoves(cl, b, inSim, capturesOnly, ply, ttBest) {
-var list = [];
-var colorMap = cl === 'W' ? isWhiteMap : isBlackMap;
-var backRank = cl === 'W' ? 7 : 0;
-var k1 = killers[ply] ? killers[ply][0] : null;
-var k2 = killers[ply] ? killers[ply][1] : null;
+            for (var r = 0; r < 8; r++) {
+                s += b[r].join('') + '/';
+            }
+            return s;
+        }
+
+        function getFastMoves(cl, b, inSim, capturesOnly, ply, ttBest) {
+            var list = [];
+            var colorMap = cl === 'W' ? isWhiteMap : isBlackMap;
+            var backRank = cl === 'W' ? 7 : 0;
+            var z = 0, o = 1;
+            var k1 = killers[ply] ? killers[ply][z] : null;
+            var k2 = killers[ply] ? killers[ply][o] : null;
+
 for (var r = 0; r < eight; r++) {
 var row = b[r];
 for (var c = 0; c < eight; c++) {
@@ -1044,28 +1046,11 @@ b[tr].splice(three, 1, '');
             var legalCount = 0;
             var bestMoveObj = null;
 
-            if (isMax) {
-                var maxVal = -Infinity;
-                for (var i = 0; i < movesList.length; i++) {
-                    var m = movesList[i];
-                    var isQuiet = (b[m.to.r][m.to.c] === '' && !m.to.isENPassant);
-                    var uData = makeSimMove(b, m);
-                    if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
-                        unmakeSimMove(b, m, uData);
-                        continue;
-                    }
-                    legalCount++;
-
-                    var score;
-                    if (legalCount === 1) {
-                        score = minimax(b, depth - 1, alpha, beta, false, ply + 1, true);
-                    } else {
-                        var reduce = (is3200 && depth >= 3 && legalCount > 4 && isQuiet && !inCheck) ? 1 : 0;
-                        score = minimax(b, depth - 1 - reduce, alpha, alpha + 1, false, ply + 1, true);
-                        if (!timeUp && score > alpha && (reduce > 0 || score < beta)) {
-                            score = minimax(b, depth - 1, alpha, beta, false, ply + 1, true);
+                                    if (isQuiet && ply < 24) {
+                            killers[ply].unshift({ fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c });
+                            killers[ply].pop();
                         }
-                    }
+
 
                     unmakeSimMove(b, m, uData);
                     if (timeUp) return 0;
@@ -1164,7 +1149,7 @@ b[tr].splice(three, 1, '');
         var bm = null;
         var isEarlyOpening = moveHistory.length < 6;
         var bookMoves = [];
-        if (moveHistory.length === 0) {
+               if (moveHistory.length === 0) {
             bookMoves = [
                 { fr: 6, fc: 4, tr: 4, tc: 4 },
                 { fr: 6, fc: 3, tr: 4, tc: 3 },
@@ -1172,7 +1157,8 @@ b[tr].splice(three, 1, '');
                 { fr: 7, fc: 6, tr: 5, tc: 5 }
             ];
         } else if (moveHistory.length === 1) {
-            if (bd === 'P') {
+            var r4 = 4, c4 = 4;
+            if (bd[r4][c4] === 'P') {
                 bookMoves = [
                     { fr: 1, fc: 4, tr: 3, tc: 4 },
                     { fr: 1, fc: 2, tr: 3, tc: 2 },
@@ -1183,11 +1169,11 @@ b[tr].splice(three, 1, '');
                 bookMoves = [
                     { fr: 1, fc: 3, tr: 3, tc: 3 },
                     { fr: 0, fc: 6, tr: 2, tc: 5 },
-Use code with caution.
-{ fr: 1, fc: 4, tr: 2, tc: 4 }
-];
-}
-}
+                    { fr: 1, fc: 4, tr: 2, tc: 4 }
+                ];
+            }
+        }
+
 var chosenBook = bookMoves.length > 0 ? bookMoves[Math.floor(Math.random() * bookMoves.length)] : null;
 var bestEvaluatedMoves = [];
 for (var d = 1; d <= maxDepth; d++) {
