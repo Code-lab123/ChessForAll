@@ -845,7 +845,7 @@ return legal;
         }
     }
 
-    function bot() {
+       function bot() {
         var diffSetting = document.getElementById('diff').value;
         var is3200 = (diffSetting === "3200");
         var isHard = (diffSetting === "1600" || is3200);
@@ -868,18 +868,29 @@ return legal;
             }
         }
 
-        var ttTable = Object.create(null);
-        var ttSize = 0;
-        var killers = [];
-        for (var k = 0; k < 24; k++) killers[k] = [null, null];
-
-               function boardKey(b, isMax) {
+        function boardKey(b, isMax) {
             var s = isMax ? 'B:' : 'W:';
             for (var r = 0; r < 8; r++) {
                 s += b[r].join('') + '/';
             }
             return s;
         }
+
+        // Build lookup map of positions already played in this game to avoid accidental repetition draws
+        var gameRepHistory = Object.create(null);
+        for (var h = 0; h < boardHistory.length; h++) {
+            var entry = JSON.parse(boardHistory[h]);
+            var hBoard = Array.isArray(entry) ? entry : entry.bd;
+            var hIsMax = (h % 2 === 1);
+            var hKey = boardKey(hBoard, hIsMax);
+            gameRepHistory[hKey] = (gameRepHistory[hKey] || 0) + 1;
+        }
+        var searchPathKeys = [];
+
+        var ttTable = Object.create(null);
+        var ttSize = 0;
+        var killers = [];
+        for (var k = 0; k < 24; k++) killers[k] = [null, null];
 
         function getFastMoves(cl, b, inSim, capturesOnly, ply, ttBest) {
             var list = [];
@@ -889,87 +900,97 @@ return legal;
             var k1 = killers[ply] ? killers[ply][z] : null;
             var k2 = killers[ply] ? killers[ply][o] : null;
 
-for (var r = 0; r < eight; r++) {
-var row = b[r];
-for (var c = 0; c < eight; c++) {
-var piece = row[c];
-if (piece !== '' && colorMap[piece]) {
-var pseudo = getPseudo(r, c, b, true, inSim);
-for (var i = 0; i < pseudo.length; i++) {
-var to = pseudo[i];
-var target = b[to.r][to.c];
-var isPromo = (piece === 'P' && to.r === 0) || (piece === 'p' && to.r === 7);
-if (capturesOnly && target === '' && !to.isENPassant && !isPromo) continue;
-var orderScore = 0;
-if (ttBest && ttBest.fr === r && ttBest.fc === c && ttBest.tr === to.r && ttBest.tc === to.c) {
-orderScore = 100000;
-} else if (target !== '' || to.isENPassant) {
-var capVal = target !== '' ? vals[target] : 100;
-orderScore = 10000 + capVal * 10 - vals[piece];
-} else if (isPromo) {
-orderScore = 9000;
-} else if (k1 && k1.fr === r && k1.fc === c && k1.tr === to.r && k1.tc === to.c) {
-orderScore = 5000;
-} else if (k2 && k2.fr === r && k2.fc === c && k2.tr === to.r && k2.tc === to.c) {
-orderScore = 4500;
-} else if (to.isCastle) {
-orderScore = 3000;
-} else if (r === backRank && (piece === 'N' || piece === 'n' || piece === 'B' || piece === 'b')) {
-orderScore = 400;
-}
-list.push({ fr: r, fc: c, to: to, order: orderScore });
-}
-}
-}
-}
-return list.sort(function(a, b) { return b.order - a.order; });
-}
-function makeSimMove(b, m) {
-var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
-var origPiece = b[fr][fc];
-var captured = b[tr][tc];
-var epCaptured = '';
-var placedPiece = origPiece;
-if (tr === seven && origPiece === 'p') placedPiece = 'q';
-else if (tr === zero && origPiece === 'P') placedPiece = 'Q';
-b[tr][tc] = placedPiece;
-b[fr][fc] = '';
-if (origPiece === 'K') { wKing.r = tr; wKing.c = tc; }
-else if (origPiece === 'k') { bKing.r = tr; bKing.c = tc; }
-if (m.to.isENPassant) {
-epCaptured = b[fr][tc];
-b[fr][tc] = '';
-}
-if (m.to.isCastle) {
-if (tc === six) {
-b[tr].splice(five, 1, b[tr][seven]);
-b[tr].splice(seven, 1, '');
-} else if (tc === two) {
-b[tr].splice(three, 1, b[tr][zero]);
-b[tr].splice(zero, 1, '');
-}
-}
-return { origPiece: origPiece, captured: captured, epCaptured: epCaptured };
-}
-function unmakeSimMove(b, m, u) {
-var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
-var origPiece = u.origPiece;
-b[fr][fc] = origPiece;
-b[tr][tc] = u.captured;
-if (origPiece === 'K') { wKing.r = fr; wKing.c = fc; }
-else if (origPiece === 'k') { bKing.r = fr; bKing.c = fc; }
-if (m.to.isENPassant) b[fr][tc] = u.epCaptured;
-if (m.to.isCastle) {
-if (tc === six) {
-b[tr].splice(seven, 1, b[tr][five]);
-b[tr].splice(five, 1, '');
-} else if (tc === two) {
-b[tr].splice(zero, 1, b[tr][three]);
-b[tr].splice(three, 1, '');
-}
-}
-}
-              var nodes = 0;
+            for (var r = 0; r < eight; r++) {
+                var row = b[r];
+                for (var c = 0; c < eight; c++) {
+                    var piece = row[c];
+                    if (piece !== '' && colorMap[piece]) {
+                        var pseudo = getPseudo(r, c, b, true, inSim);
+                        for (var i = 0; i < pseudo.length; i++) {
+                            var to = pseudo[i];
+                            var target = b[to.r][to.c];
+                            var isPromo = (piece === 'P' && to.r === 0) || (piece === 'p' && to.r === 7);
+                            if (capturesOnly && target === '' && !to.isENPassant && !isPromo) continue;
+
+                            var orderScore = 0;
+                            if (ttBest && ttBest.fr === r && ttBest.fc === c && ttBest.tr === to.r && ttBest.tc === to.c) {
+                                orderScore = 100000;
+                            } else if (target !== '' || to.isENPassant) {
+                                var capVal = target !== '' ? vals[target] : 100;
+                                orderScore = 10000 + capVal * 10 - vals[piece];
+                            } else if (isPromo) {
+                                orderScore = 9000;
+                            } else if (k1 && k1.fr === r && k1.fc === c && k1.tr === to.r && k1.tc === to.c) {
+                                orderScore = 5000;
+                            } else if (k2 && k2.fr === r && k2.fc === c && k2.tr === to.r && k2.tc === to.c) {
+                                orderScore = 4500;
+                            } else if (to.isCastle) {
+                                orderScore = 3000;
+                            } else if (r === backRank && (piece === 'N' || piece === 'n' || piece === 'B' || piece === 'b')) {
+                                orderScore = 400;
+                            }
+                            list.push({ fr: r, fc: c, to: to, order: orderScore });
+                        }
+                    }
+                }
+            }
+            return list.sort(function(a, b) { return b.order - a.order; });
+        }
+
+        function makeSimMove(b, m) {
+            var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
+            var origPiece = b[fr][fc];
+            var captured = b[tr][tc];
+            var epCaptured = '';
+
+            var placedPiece = origPiece;
+            if (tr === seven && origPiece === 'p') placedPiece = 'q';
+            else if (tr === zero && origPiece === 'P') placedPiece = 'Q';
+
+            b[tr][tc] = placedPiece;
+            b[fr][fc] = '';
+
+            if (origPiece === 'K') { wKing.r = tr; wKing.c = tc; }
+            else if (origPiece === 'k') { bKing.r = tr; bKing.c = tc; }
+
+            if (m.to.isENPassant) {
+                epCaptured = b[fr][tc];
+                b[fr][tc] = '';
+            }
+            if (m.to.isCastle) {
+                if (tc === six) {
+                    b[tr].splice(five, 1, b[tr][seven]);
+                    b[tr].splice(seven, 1, '');
+                } else if (tc === two) {
+                    b[tr].splice(three, 1, b[tr][zero]);
+                    b[tr].splice(zero, 1, '');
+                }
+            }
+            return { origPiece: origPiece, captured: captured, epCaptured: epCaptured };
+        }
+
+        function unmakeSimMove(b, m, u) {
+            var fr = m.fr, fc = m.fc, tr = m.to.r, tc = m.to.c;
+            var origPiece = u.origPiece;
+            b[fr][fc] = origPiece;
+            b[tr][tc] = u.captured;
+
+            if (origPiece === 'K') { wKing.r = fr; wKing.c = fc; }
+            else if (origPiece === 'k') { bKing.r = fr; bKing.c = fc; }
+
+            if (m.to.isENPassant) b[fr][tc] = u.epCaptured;
+            if (m.to.isCastle) {
+                if (tc === six) {
+                    b[tr].splice(seven, 1, b[tr][five]);
+                    b[tr].splice(five, 1, '');
+                } else if (tc === two) {
+                    b[tr].splice(zero, 1, b[tr][three]);
+                    b[tr].splice(three, 1, '');
+                }
+            }
+        }
+
+        var nodes = 0;
         function quiesce(b, alpha, beta, isMax, qDepth) {
             if ((++nodes & 255) === 0 && Date.now() - startTime > timeLimitMs) {
                 timeUp = true;
@@ -1013,11 +1034,22 @@ b[tr].splice(three, 1, '');
             return isMax ? alpha : beta;
         }
 
-               function minimax(b, depth, alpha, beta, isMax, ply, allowNull) {
+                       function minimax(b, depth, alpha, beta, isMax, ply, allowNull) {
             if ((++nodes & 255) === 0 && Date.now() - startTime > timeLimitMs) {
                 timeUp = true;
                 return 0;
             }
+
+            var key = boardKey(b, isMax);
+
+            // Treat repeated positions inside the search tree as a 0 (draw) so winning lines avoid repetition
+            if (ply > 0) {
+                if (gameRepHistory[key] >= 1) return 0;
+                for (var sp = 0; sp < ply; sp++) {
+                    if (searchPathKeys[sp] === key) return 0;
+                }
+            }
+            searchPathKeys[ply] = key;
 
             var activeColor = isMax ? 'B' : 'W';
             var enemyColor = isMax ? 'W' : 'B';
@@ -1030,7 +1062,6 @@ b[tr].splice(three, 1, '');
 
             var alphaOrig = alpha;
             var betaOrig = beta;
-            var key = boardKey(b, isMax);
             var ttEntry = ttTable[key];
             var ttBest = null;
 
@@ -1155,7 +1186,6 @@ b[tr].splice(three, 1, '');
             }
         }
 
-
         var topMoves = [];
         var rootColorMap = botColor === 'W' ? isWhiteMap : isBlackMap;
         var rootKing = botColor === 'W' ? wKing : bKing;
@@ -1179,7 +1209,7 @@ b[tr].splice(three, 1, '');
         var bm = null;
         var isEarlyOpening = moveHistory.length < 6;
         var bookMoves = [];
-               if (moveHistory.length === 0) {
+        if (moveHistory.length === 0) {
             bookMoves = [
                 { fr: 6, fc: 4, tr: 4, tc: 4 },
                 { fr: 6, fc: 3, tr: 4, tc: 3 },
@@ -1204,25 +1234,28 @@ b[tr].splice(three, 1, '');
             }
         }
 
-var chosenBook = bookMoves.length > 0 ? bookMoves[Math.floor(Math.random() * bookMoves.length)] : null;
-var bestEvaluatedMoves = [];
-for (var d = 1; d <= maxDepth; d++) {
-var currentDepthMoves = [];
-for (var i = 0; i < topMoves.length; i++) {
-var m = topMoves[i];
-var uData = makeSimMove(simBoard, m);
-var baseValue = minimax(simBoard, d - 1, -Infinity, Infinity, botColor === 'W', 1, true);
-unmakeSimMove(simBoard, m, uData);
-if (timeUp) break;
-var bookBonus = 0;
-if (chosenBook && m.fr === chosenBook.fr && m.fc === chosenBook.fc && m.to.r === chosenBook.tr && m.to.c === chosenBook.tc) {
-bookBonus = botColor === 'B' ? 28 : -28;
-}
-var jitterRange = is3200 ? 0 : (isEarlyOpening ? 14 : 0);
-var varietyJitter = jitterRange > 0 ? (Math.random() * jitterRange - jitterRange / 2) : 0;
-currentDepthMoves.push({ move: m, score: baseValue + bookBonus + varietyJitter });
-}
-if (timeUp) break;
+        var chosenBook = bookMoves.length > 0 ? bookMoves[Math.floor(Math.random() * bookMoves.length)] : null;
+        var bestEvaluatedMoves = [];
+        searchPathKeys[0] = boardKey(simBoard, botColor === 'B');
+
+        for (var d = 1; d <= maxDepth; d++) {
+            var currentDepthMoves = [];
+            for (var i = 0; i < topMoves.length; i++) {
+                var m = topMoves[i];
+                var uData = makeSimMove(simBoard, m);
+                var baseValue = minimax(simBoard, d - 1, -Infinity, Infinity, botColor === 'W', 1, true);
+                unmakeSimMove(simBoard, m, uData);
+                if (timeUp) break;
+
+                var bookBonus = 0;
+                if (chosenBook && m.fr === chosenBook.fr && m.fc === chosenBook.fc && m.to.r === chosenBook.tr && m.to.c === chosenBook.tc) {
+                    bookBonus = botColor === 'B' ? 28 : -28;
+                }
+                var jitterRange = is3200 ? 0 : (isEarlyOpening ? 14 : 0);
+                var varietyJitter = jitterRange > 0 ? (Math.random() * jitterRange - jitterRange / 2) : 0;
+                currentDepthMoves.push({ move: m, score: baseValue + bookBonus + varietyJitter });
+            }
+            if (timeUp) break;
 currentDepthMoves.sort(function(a, b) {
 return botColor === 'B' ? b.score - a.score : a.score - b.score;
 });
@@ -1282,6 +1315,7 @@ turn = playerColor;
 endState(playerColor);
 draw();
 }
+  
 function handlePromoSelection(pieceType) {
 if (!window.pendingPromo) return;
 var r = window.pendingPromo.row;
