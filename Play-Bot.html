@@ -1709,6 +1709,11 @@ document.getElementById('msg').innerText = "Your Turn (White)";
         renderMoveList();
         draw();
     }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', draw);
+    } else {
+        draw();
+    }
 
 </script>
 <br>
