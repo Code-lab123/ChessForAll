@@ -835,14 +835,15 @@
             }
         }
     }
-    function bot() {
+       function bot() {
         var diffSetting = document.getElementById('diff').value;
         var is3200 = (diffSetting === "3200");
         var isHard = (diffSetting === "1600" || is3200);
 
-        var maxDepth = is3200 ? 12 : (diffSetting === "1600" ? 5 : (diffSetting === "1200" ? 3 : 2));
-        var maxQDepth = is3200 ? 8 : (diffSetting === "1600" ? 4 : (diffSetting === "1200" ? 3 : 2));
-        var timeLimitMs = is3200 ? 3500 : (diffSetting === "1600" ? 450 : (diffSetting === "1200" ? 200 : 80));
+        // Fast 450ms budget for 3200 (under half a second)
+        var maxDepth = is3200 ? 10 : (diffSetting === "1600" ? 5 : (diffSetting === "1200" ? 3 : 2));
+        var maxQDepth = is3200 ? 6 : (diffSetting === "1600" ? 4 : (diffSetting === "1200" ? 3 : 2));
+        var timeLimitMs = is3200 ? 450 : (diffSetting === "1600" ? 220 : (diffSetting === "1200" ? 100 : 50));
         var startTime = Date.now();
         var timeUp = false;
 
@@ -971,7 +972,7 @@
 
         var nodes = 0;
         function quiesce(b, alpha, beta, isMax, qDepth) {
-            if ((++nodes & 127) === 0 && Date.now() - startTime > timeLimitMs) {
+            if ((++nodes & 255) === 0 && Date.now() - startTime > timeLimitMs) {
                 timeUp = true;
                 return 0;
             }
@@ -1014,7 +1015,7 @@
         }
 
         function minimax(b, depth, alpha, beta, isMax, ply, allowNull) {
-            if ((++nodes & 127) === 0 && Date.now() - startTime > timeLimitMs) {
+            if ((++nodes & 255) === 0 && Date.now() - startTime > timeLimitMs) {
                 timeUp = true;
                 return 0;
             }
@@ -1024,7 +1025,7 @@
             var myKing = isMax ? bKing : wKing;
             var inCheck = isSquareAttacked(myKing.r, myKing.c, enemyColor, b);
 
-            if (is3200 && inCheck && ply < 20) {
+            if (is3200 && inCheck && ply < 18) {
                 depth += 1;
             }
 
@@ -1063,13 +1064,23 @@
                 for (var i = 0; i < movesList.length; i++) {
                     var m = movesList[i];
                     var isQuiet = (b[m.to.r][m.to.c] === '' && !m.to.isENPassant);
-                    var uData = makeSimMove(b, m);
+var uData = makeSimMove(b, m);
 if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
 unmakeSimMove(b, m, uData);
 continue;
 }
 legalCount++;
-var score = minimax(b, depth - 1, alpha, beta, false, ply + 1, true);
+var score;
+if (legalCount === 1) {
+score = minimax(b, depth - 1, alpha, beta, false, ply + 1, true);
+} else {
+// Late Move Reduction (LMR) + Principal Variation Search (PVS)
+var reduce = (is3200 && depth >= 3 && legalCount > 4 && isQuiet && !inCheck) ? 1 : 0;
+score = minimax(b, depth - 1 - reduce, alpha, alpha + 1, false, ply + 1, true);
+if (!timeUp && score > alpha && (reduce > 0 || score < beta)) {
+score = minimax(b, depth - 1, alpha, beta, false, ply + 1, true);
+}
+}
 unmakeSimMove(b, m, uData);
 if (timeUp) return 0;
 if (score > maxVal) {
@@ -1105,7 +1116,16 @@ unmakeSimMove(b, m, uData);
 continue;
 }
 legalCount++;
-var score = minimax(b, depth - 1, alpha, beta, true, ply + 1, true);
+var score;
+if (legalCount === 1) {
+score = minimax(b, depth - 1, alpha, beta, true, ply + 1, true);
+} else {
+var reduce = (is3200 && depth >= 3 && legalCount > 4 && isQuiet && !inCheck) ? 1 : 0;
+score = minimax(b, depth - 1 - reduce, beta - 1, beta, true, ply + 1, true);
+if (!timeUp && score < beta && (reduce > 0 || score > alpha)) {
+score = minimax(b, depth - 1, alpha, beta, true, ply + 1, true);
+}
+}
 unmakeSimMove(b, m, uData);
 if (timeUp) return 0;
 if (score < minVal) {
@@ -1132,7 +1152,9 @@ ttTable[key] = { depth: depth, score: minVal, flag: flag, best: bestMoveObj };
 return minVal;
 }
 }
-              var topMoves = [];
+         
+
+           var topMoves = [];
         var rootColorMap = botColor === 'W' ? isWhiteMap : isBlackMap;
         var rootKing = botColor === 'W' ? wKing : bKing;
         for (var r = 0; r < eight; r++) {
@@ -1362,7 +1384,7 @@ return minVal;
 
     function undo() {
         var playerColor = document.getElementById('pColor').value;
-var minHistory = playerColor === 'W' ? 3 : 4;
+        var minHistory = playerColor === 'W' ? 3 : 4;
 var zero = 0, one = 1, four = 4, seven = 7;
 if (window.pendingPromo) {
 window.pendingPromo = null;
@@ -1428,6 +1450,7 @@ if (document.readyState === 'loading') {
 document.addEventListener('DOMContentLoaded', draw);
 } else {
 draw();
+}
 }
 </script>
 <br>
