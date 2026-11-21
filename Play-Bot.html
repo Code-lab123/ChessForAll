@@ -183,7 +183,7 @@
         return isWhiteMap[p] ? 'W' : 'B';
     }
 
-    function evalBoard(b) {
+      function evalBoard(b) {
         var score = 0;
         var phase = 0;
         var bKIdx = 4, wKIdx = 60;
@@ -193,6 +193,7 @@
         var wMinPawnRow = new Array(8).fill(8);
         var bMaxPawnRow = new Array(8).fill(-1);
         var wRookCols = [], bRookCols = [];
+        var z = 0, o = 1, tw = 2, th = 3, fv = 5, sx = 6, sv = 7;
 
         for (var r = 0; r < 8; r++) {
             var row = b[r];
@@ -214,76 +215,87 @@
                     score += 310 + nPST[idx]; phase += 1;
                 } else if (p === 'N') {
                     score -= 310 + nPST[flipIdx]; phase += 1;
-} else if (p === 'b') {
-score += 330 + bPST[idx]; phase += 1; bBishops++;
-} else if (p === 'B') {
-score -= 330 + bPST[flipIdx]; phase += 1; wBishops++;
-} else if (p === 'r') {
-score += 500 + rPST[idx]; phase += 2; bRookCols.push(c);
-} else if (p === 'R') {
-score -= 500 + rPST[flipIdx]; phase += 2; wRookCols.push(c);
-} else if (p === 'q') {
-score += 920 + qPST[idx]; phase += 4;
-} else if (p === 'Q') {
-score -= 920 + qPST[flipIdx]; phase += 4;
-} else if (p === 'k') {
-bKIdx = idx;
-} else if (p === 'K') {
-wKIdx = flipIdx;
-}
-}
-}
-if (bBishops >= 2) score += 42;
-if (wBishops >= 2) score -= 42;
-for (var i = 0; i < bRookCols.length; i++) {
-var rc = bRookCols[i];
-if (bPawnCols[rc] === 0) score += (wPawnCols[rc] === 0) ? 22 : 11;
-}
-for (var i = 0; i < wRookCols.length; i++) {
-var rc = wRookCols[i];
-if (wPawnCols[rc] === 0) score -= (bPawnCols[rc] === 0) ? 22 : 11;
-}
-for (var c = 0; c < 8; c++) {
-if (bPawnCols[c] > 1) score -= (bPawnCols[c] - 1) * 15;
-if (wPawnCols[c] > 1) score += (wPawnCols[c] - 1) * 15;
-if (bPawnCols[c] > 0) {
-var bIso = (c === 0 || bPawnCols[c - 1] === 0) && (c === 7 || bPawnCols[c + 1] === 0);
-if (bIso) score -= 14;
-var bBlocked = (wMinPawnRow[c] > bMaxPawnRow[c]) ||
-(c > 0 && wMinPawnRow[c - 1] > bMaxPawnRow[c]) ||
-(c < 7 && wMinPawnRow[c + 1] > bMaxPawnRow[c]);
-if (!bBlocked) score += (bMaxPawnRow[c] * bMaxPawnRow[c]) * 2.5;
-}
-if (wPawnCols[c] > 0) {
-var wIso = (c === 0 || wPawnCols[c - 1] === 0) && (c === 7 || wPawnCols[c + 1] === 0);
-if (wIso) score += 14;
-var wBlocked = (bMaxPawnRow[c] < wMinPawnRow[c]) ||
-(c > 0 && bMaxPawnRow[c - 1] < wMinPawnRow[c]) ||
-(c < 7 && bMaxPawnRow[c + 1] < wMinPawnRow[c]);
-if (!wBlocked) {
-var adv = 7 - wMinPawnRow[c];
-score -= (adv * adv) * 2.5;
-}
-}
-}
-var clampedPhase = phase > 24 ? 24 : phase;
-var bKingScore = ((kMidPST[bKIdx] * clampedPhase) + (kEndPST[bKIdx] * (24 - clampedPhase))) / 24;
-var wKingScore = ((kMidPST[wKIdx] * clampedPhase) + (kEndPST[wKIdx] * (24 - clampedPhase))) / 24;
-score += bKingScore - wKingScore;
-if (phase > 14) {
-if (b !== 'q' && (b === 'n' || b === 'b' || b === 'b' || b === 'n')) score -= 30;
-if (b !== 'Q' && (b === 'N' || b === 'B' || b === 'B' || b === 'N')) score += 30;
-if (b === 'n') score -= 8;
-if (b === 'n') score -= 8;
-if (b === 'b') score -= 8;
-if (b === 'b') score -= 8;
-if (b === 'N') score += 8;
-if (b === 'N') score += 8;
-if (b === 'B') score += 8;
-if (b === 'B') score += 8;
-}
-return score;
-}
+                } else if (p === 'b') {
+                    score += 330 + bPST[idx]; phase += 1; bBishops++;
+                } else if (p === 'B') {
+                    score -= 330 + bPST[flipIdx]; phase += 1; wBishops++;
+                } else if (p === 'r') {
+                    score += 500 + rPST[idx]; phase += 2; bRookCols.push(c);
+                } else if (p === 'R') {
+                    score -= 500 + rPST[flipIdx]; phase += 2; wRookCols.push(c);
+                } else if (p === 'q') {
+                    score += 920 + qPST[idx]; phase += 4;
+                } else if (p === 'Q') {
+                    score -= 920 + qPST[flipIdx]; phase += 4;
+                } else if (p === 'k') {
+                    bKIdx = idx;
+                } else if (p === 'K') {
+                    wKIdx = flipIdx;
+                }
+            }
+        }
+
+        if (bBishops >= 2) score += 42;
+        if (wBishops >= 2) score -= 42;
+
+        for (var i = 0; i < bRookCols.length; i++) {
+            var rc = bRookCols[i];
+            if (bPawnCols[rc] === 0) score += (wPawnCols[rc] === 0) ? 22 : 11;
+        }
+        for (var i = 0; i < wRookCols.length; i++) {
+            var rc = wRookCols[i];
+            if (wPawnCols[rc] === 0) score -= (bPawnCols[rc] === 0) ? 22 : 11;
+        }
+
+        for (var c = 0; c < 8; c++) {
+            if (bPawnCols[c] > 1) score -= (bPawnCols[c] - 1) * 15;
+            if (wPawnCols[c] > 1) score += (wPawnCols[c] - 1) * 15;
+
+            if (bPawnCols[c] > 0) {
+                var bIso = (c === 0 || bPawnCols[c - 1] === 0) && (c === 7 || bPawnCols[c + 1] === 0);
+                if (bIso) score -= 14;
+                var bBlocked = (wMinPawnRow[c] > bMaxPawnRow[c]) ||
+                               (c > 0 && wMinPawnRow[c - 1] > bMaxPawnRow[c]) ||
+                               (c < 7 && wMinPawnRow[c + 1] > bMaxPawnRow[c]);
+                if (!bBlocked) score += (bMaxPawnRow[c] * bMaxPawnRow[c]) * 2.5;
+            }
+            if (wPawnCols[c] > 0) {
+                var wIso = (c === 0 || wPawnCols[c - 1] === 0) && (c === 7 || wPawnCols[c + 1] === 0);
+                if (wIso) score += 14;
+                var wBlocked = (bMaxPawnRow[c] < wMinPawnRow[c]) ||
+                               (c > 0 && bMaxPawnRow[c - 1] < wMinPawnRow[c]) ||
+                               (c < 7 && bMaxPawnRow[c + 1] < wMinPawnRow[c]);
+                if (!wBlocked) {
+                    var adv = 7 - wMinPawnRow[c];
+                    score -= (adv * adv) * 2.5;
+                }
+            }
+        }
+
+        var clampedPhase = phase > 24 ? 24 : phase;
+        var bKingScore = ((kMidPST[bKIdx] * clampedPhase) + (kEndPST[bKIdx] * (24 - clampedPhase))) / 24;
+        var wKingScore = ((kMidPST[wKIdx] * clampedPhase) + (kEndPST[wKIdx] * (24 - clampedPhase))) / 24;
+        score += bKingScore - wKingScore;
+
+        if (phase > 14) {
+            var bRow0 = b[z], wRow7 = b[sv];
+            if (bRow0[th] !== 'q' && (bRow0[o] === 'n' || bRow0[tw] === 'b' || bRow0[fv] === 'b' || bRow0[sx] === 'n')) score -= 30;
+            if (wRow7[th] !== 'Q' && (wRow7[o] === 'N' || wRow7[tw] === 'B' || wRow7[fv] === 'B' || wRow7[sx] === 'N')) score += 30;
+
+            if (bRow0[o] === 'n') score -= 8;
+            if (bRow0[sx] === 'n') score -= 8;
+            if (bRow0[tw] === 'b') score -= 8;
+            if (bRow0[fv] === 'b') score -= 8;
+
+            if (wRow7[o] === 'N') score += 8;
+            if (wRow7[sx] === 'N') score += 8;
+            if (wRow7[tw] === 'B') score += 8;
+            if (wRow7[fv] === 'B') score += 8;
+        }
+
+        return score;
+    }
+
       function buildSANPrefix(fr, fc, tr, tc, moveObj) {
         var piece = bd[fr][fc];
         var upper = piece.toUpperCase();
@@ -1001,7 +1013,7 @@ b[tr].splice(three, 1, '');
             return isMax ? alpha : beta;
         }
 
-        function minimax(b, depth, alpha, beta, isMax, ply, allowNull) {
+               function minimax(b, depth, alpha, beta, isMax, ply, allowNull) {
             if ((++nodes & 255) === 0 && Date.now() - startTime > timeLimitMs) {
                 timeUp = true;
                 return 0;
@@ -1046,11 +1058,28 @@ b[tr].splice(three, 1, '');
             var legalCount = 0;
             var bestMoveObj = null;
 
-                                    if (isQuiet && ply < 24) {
-                            killers[ply].unshift({ fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c });
-                            killers[ply].pop();
-                        }
+            if (isMax) {
+                var maxVal = -Infinity;
+                for (var i = 0; i < movesList.length; i++) {
+                    var m = movesList[i];
+                    var isQuiet = (b[m.to.r][m.to.c] === '' && !m.to.isENPassant);
+                    var uData = makeSimMove(b, m);
+                    if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
+                        unmakeSimMove(b, m, uData);
+                        continue;
+                    }
+                    legalCount++;
 
+                    var score;
+                    if (legalCount === 1) {
+                        score = minimax(b, depth - 1, alpha, beta, false, ply + 1, true);
+                    } else {
+                        var reduce = (is3200 && depth >= 3 && legalCount > 4 && isQuiet && !inCheck) ? 1 : 0;
+                        score = minimax(b, depth - 1 - reduce, alpha, alpha + 1, false, ply + 1, true);
+                        if (!timeUp && score > alpha && (reduce > 0 || score < beta)) {
+                            score = minimax(b, depth - 1, alpha, beta, false, ply + 1, true);
+                        }
+                    }
 
                     unmakeSimMove(b, m, uData);
                     if (timeUp) return 0;
@@ -1061,8 +1090,8 @@ b[tr].splice(three, 1, '');
                     if (score > alpha) alpha = score;
                     if (beta <= alpha) {
                         if (isQuiet && ply < 24) {
-                            killers[ply] = killers[ply];
-                            killers[ply] = { fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c };
+                            killers[ply].unshift({ fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c });
+                            killers[ply].pop();
                         }
                         break;
                     }
@@ -1108,8 +1137,8 @@ b[tr].splice(three, 1, '');
                     if (score < beta) beta = score;
                     if (beta <= alpha) {
                         if (isQuiet && ply < 24) {
-                            killers[ply] = killers[ply];
-                            killers[ply] = { fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c };
+                            killers[ply].unshift({ fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c });
+                            killers[ply].pop();
                         }
                         break;
                     }
@@ -1125,6 +1154,7 @@ b[tr].splice(three, 1, '');
                 return minVal;
             }
         }
+
 
         var topMoves = [];
         var rootColorMap = botColor === 'W' ? isWhiteMap : isBlackMap;
