@@ -845,15 +845,14 @@ return legal;
         }
     }
 
-           function bot() {
+               function bot() {
         var diffSetting = document.getElementById('diff').value;
         var is3200 = (diffSetting === "3200");
         var isHard = (diffSetting === "1600" || is3200);
 
-        // 900ms budget with Zobrist hashing searches 8-12 plies deep in under 1 second
         var maxDepth = is3200 ? 12 : (diffSetting === "1600" ? 5 : (diffSetting === "1200" ? 3 : 2));
         var maxQDepth = is3200 ? 8 : (diffSetting === "1600" ? 4 : (diffSetting === "1200" ? 3 : 2));
-        var timeLimitMs = is3200 ? 900 : (diffSetting === "1600" ? 220 : (diffSetting === "1200" ? 100 : 50));
+        var timeLimitMs = is3200 ? 1100 : (diffSetting === "1600" ? 220 : (diffSetting === "1200" ? 100 : 50));
         var startTime = Date.now();
         var timeUp = false;
 
@@ -869,7 +868,6 @@ return legal;
             }
         }
 
-        // Fast string-free integer hash (10x faster than string concatenation)
         var pieceHashMap = { 'P':1, 'N':2, 'B':3, 'R':4, 'Q':5, 'K':6, 'p':7, 'n':8, 'b':9, 'r':10, 'q':11, 'k':12 };
         function computeHash(b, isMax) {
             var h1 = isMax ? 0x9e3779b9 : 0x517cc1b7;
@@ -902,9 +900,10 @@ return legal;
         var killers = [];
         for (var k = 0; k < 28; k++) killers[k] = [null, null];
 
-        function getFastMoves(cl, b, inSim, capturesOnly, ply, ttBest) {
+        function getFastMoves(cl, b, inSim, capturesOnly, ply, ttBest, includeChecks) {
             var list = [];
             var colorMap = cl === 'W' ? isWhiteMap : isBlackMap;
+            var oppKing = cl === 'W' ? bKing : wKing;
             var backRank = cl === 'W' ? 7 : 0;
             var z = 0, o = 1;
             var k1 = killers[ply] ? killers[ply][z] : null;
@@ -920,16 +919,30 @@ return legal;
                             var to = pseudo[i];
                             var target = b[to.r][to.c];
                             var isPromo = (piece === 'P' && to.r === 0) || (piece === 'p' && to.r === 7);
-                            if (capturesOnly && target === '' && !to.isENPassant && !isPromo) continue;
+                            var isCap = (target !== '' || to.isENPassant);
+
+                            var isDirectCheck = false;
+                            if (capturesOnly && !isCap && !isPromo && includeChecks) {
+                                var saved = b[to.r][to.c];
+                                b[to.r][to.c] = piece;
+                                b[r][c] = '';
+                                isDirectCheck = isSquareAttacked(oppKing.r, oppKing.c, cl, b);
+                                b[r][c] = piece;
+                                b[to.r][to.c] = saved;
+                            }
+
+                            if (capturesOnly && !isCap && !isPromo && !isDirectCheck) continue;
 
                             var orderScore = 0;
                             if (ttBest && ttBest.fr === r && ttBest.fc === c && ttBest.tr === to.r && ttBest.tc === to.c) {
                                 orderScore = 100000;
-                            } else if (target !== '' || to.isENPassant) {
+                            } else if (isCap) {
                                 var capVal = target !== '' ? vals[target] : 100;
                                 orderScore = 10000 + capVal * 10 - vals[piece];
                             } else if (isPromo) {
                                 orderScore = 9000;
+                            } else if (isDirectCheck) {
+                                orderScore = 7000;
                             } else if (k1 && k1.fr === r && k1.fc === c && k1.tr === to.r && k1.tc === to.c) {
                                 orderScore = 5000;
                             } else if (k2 && k2.fr === r && k2.fc === c && k2.tr === to.r && k2.tc === to.c) {
@@ -1000,10 +1013,40 @@ return legal;
             }
         }
 
-        // Enhanced evaluation with endgame mop-up (drives lone enemy king to corner)
         function evalEnhanced(b) {
             var s = evalBoard(b);
             if (!is3200) return s;
+
+            var wKingShield = 0, bKingShield = 0;
+            for (var dc = -1; dc <= 1; dc++) {
+                var wc = wKing.c + dc;
+                if (wc >= 0 && wc < 8 && wKing.r > 0) {
+                    if (b[wKing.r - 1][wc] === 'P') wKingShield += 15;
+                    else if (wKing.r > 1 && b[wKing.r - 2][wc] === 'P') wKingShield += 8;
+                }
+                var bc = bKing.c + dc;
+                if (bc >= 0 && bc < 8 && bKing.r < 7) {
+                    if (b[bKing.r + 1][bc] === 'p') bKingShield += 15;
+                    else if (bKing.r < 6 && b[bKing.r + 2][bc] === 'p') bKingShield += 8;
+                }
+            }
+            s += (bKingShield - wKingShield);
+
+            for (var r = 0; r < 8; r++) {
+                for (var c = 0; c < 8; c++) {
+                    var p = b[r][c];
+                    if (p === 'q') {
+                        for (var rr = 0; rr < 8; rr++) {
+                            if (b[rr][c] === 'R') s -= 35;
+                        }
+                    } else if (p === 'Q') {
+                        for (var rr = 0; rr < 8; rr++) {
+                            if (b[rr][c] === 'r') s += 35;
+                        }
+                    }
+                }
+            }
+
             if (s > 350) {
                 var wDistCenter = Math.abs(3.5 - wKing.r) + Math.abs(3.5 - wKing.c);
                 var kingsDist = Math.abs(bKing.r - wKing.r) + Math.abs(bKing.c - wKing.c);
@@ -1026,192 +1069,178 @@ return legal;
             if (qDepth === 0) return standPat;
 
             if (isMax) {
-                if (standPat >= beta) return beta;
-                if (standPat + 950 < alpha) return alpha;
-                if (standPat > alpha) alpha = standPat;
-            } else {
-                if (standPat <= alpha) return alpha;
-                if (standPat - 950 > beta) return beta;
-                if (standPat < beta) beta = standPat;
-            }
-
-            var activeColor = isMax ? 'B' : 'W';
-            var enemyColor = isMax ? 'W' : 'B';
-            var myKing = isMax ? bKing : wKing;
-            var capMoves = getFastMoves(activeColor, b, true, true, 27, null);
-            for (var i = 0; i < capMoves.length; i++) {
-                var m = capMoves[i];
-                var uData = makeSimMove(b, m);
-                if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
-                    unmakeSimMove(b, m, uData);
-                    continue;
-                }
-                var score = quiesce(b, alpha, beta, !isMax, qDepth - 1);
-                unmakeSimMove(b, m, uData);
-                if (timeUp) return 0;
-                if (isMax) {
-                    if (score >= beta) return beta;
-                    if (score > alpha) alpha = score;
-                } else {
-                    if (score <= alpha) return alpha;
-                    if (score < beta) beta = score;
-                }
-            }
-            return isMax ? alpha : beta;
-        }
-
-                               function minimax(b, depth, alpha, beta, isMax, ply, allowNull) {
-            if ((++nodes & 511) === 0 && Date.now() - startTime > timeLimitMs) {
-                timeUp = true;
-                return 0;
-            }
-
-            var key = computeHash(b, isMax);
-
-            // Check repetition only on real moves (allowNull === true means not immediately after a null move)
-            if (ply > 0 && allowNull) {
-                if (gameRepHistory[key] >= 1) return 0;
-                for (var sp = 0; sp < ply; sp++) {
-                    if (searchPathKeys[sp] === key) return 0;
-                }
-            }
-            searchPathKeys[ply] = key;
-
-            var activeColor = isMax ? 'B' : 'W';
-            var enemyColor = isMax ? 'W' : 'B';
-            var myKing = isMax ? bKing : wKing;
-            var inCheck = isSquareAttacked(myKing.r, myKing.c, enemyColor, b);
-
-            if (is3200 && inCheck && ply < 22) {
-                depth += 1;
-            }
-
-            var alphaOrig = alpha;
-            var betaOrig = beta;
-            var ttEntry = ttTable[key];
-            var ttBest = null;
-
-            if (ttEntry) {
-                ttBest = ttEntry.best;
-                if (ttEntry.depth >= depth) {
-                    if (ttEntry.flag === 0) return ttEntry.score;
-                    if (ttEntry.flag === 1 && ttEntry.score > alpha) alpha = ttEntry.score;
-                    else if (ttEntry.flag === 2 && ttEntry.score < beta) beta = ttEntry.score;
-                    if (alpha >= beta) return ttEntry.score;
-                }
-            }
-
-            if (depth <= 0) return quiesce(b, alpha, beta, isMax, maxQDepth);
-
-            // Null-Move Pruning (safely disables repetition check for 1 ply so null-move doesn't return false 0)
-            if (is3200 && allowNull && !inCheck && depth >= 3 && ply > 0) {
-                var R = depth > 6 ? 3 : 2;
-                var nullScore = minimax(b, depth - 1 - R, alpha, beta, !isMax, ply + 1, false);
-                if (timeUp) return 0;
-                if (isMax && nullScore >= beta) return beta;
-                if (!isMax && nullScore <= alpha) return alpha;
-            }
-
-            var movesList = getFastMoves(activeColor, b, true, false, ply, ttBest);
-            var legalCount = 0;
-            var bestMoveObj = null;
-
-            if (isMax) {
-                var maxVal = -Infinity;
-                for (var i = 0; i < movesList.length; i++) {
-                    var m = movesList[i];
-                    var isQuiet = (b[m.to.r][m.to.c] === '' && !m.to.isENPassant);
-                    var uData = makeSimMove(b, m);
-                    if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
-                        unmakeSimMove(b, m, uData);
-                        continue;
-                    }
-                    legalCount++;
-
-                    var score;
-                    if (legalCount === 1) {
-                        score = minimax(b, depth - 1, alpha, beta, false, ply + 1, true);
-                    } else {
-                        var reduce = (is3200 && depth >= 3 && legalCount > 4 && isQuiet && !inCheck) ? 1 : 0;
-                        score = minimax(b, depth - 1 - reduce, alpha, alpha + 1, false, ply + 1, true);
-                        if (!timeUp && score > alpha && (reduce > 0 || score < beta)) {
-                            score = minimax(b, depth - 1, alpha, beta, false, ply + 1, true);
-                        }
-                    }
-
-                    unmakeSimMove(b, m, uData);
-                    if (timeUp) return 0;
-                    if (score > maxVal) {
-                        maxVal = score;
-                        bestMoveObj = { fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c };
-                    }
-                    if (score > alpha) alpha = score;
-                    if (beta <= alpha) {
-                        if (isQuiet && ply < 28) {
-                            killers[ply].unshift({ fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c });
-                            killers[ply].pop();
-                        }
-                        break;
-                    }
-                }
-                if (legalCount === 0) {
-                    return inCheck ? -999999 - depth : 0;
-                }
-                if (ttSize < 150000) {
-                    var flag = maxVal <= alphaOrig ? 2 : (maxVal >= betaOrig ? 1 : 0);
-                    if (!ttEntry) ttSize++;
-                    ttTable[key] = { depth: depth, score: maxVal, flag: flag, best: bestMoveObj };
-                }
-                return maxVal;
-            } else {
-                var minVal = Infinity;
-                for (var i = 0; i < movesList.length; i++) {
-                    var m = movesList[i];
-                    var isQuiet = (b[m.to.r][m.to.c] === '' && !m.to.isENPassant);
-                    var uData = makeSimMove(b, m);
-                    if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
-                        unmakeSimMove(b, m, uData);
-                        continue;
-                    }
-                    legalCount++;
-
-                    var score;
-                    if (legalCount === 1) {
-                        score = minimax(b, depth - 1, alpha, beta, true, ply + 1, true);
-                    } else {
-                        var reduce = (is3200 && depth >= 3 && legalCount > 4 && isQuiet && !inCheck) ? 1 : 0;
-                        score = minimax(b, depth - 1 - reduce, beta - 1, beta, true, ply + 1, true);
-                        if (!timeUp && score < beta && (reduce > 0 || score > alpha)) {
-                            score = minimax(b, depth - 1, alpha, beta, true, ply + 1, true);
-                        }
-                    }
-
-                    unmakeSimMove(b, m, uData);
-                    if (timeUp) return 0;
-                    if (score < minVal) {
-                        minVal = score;
-                        bestMoveObj = { fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c };
-                    }
-                    if (score < beta) beta = score;
-                    if (beta <= alpha) {
-                        if (isQuiet && ply < 28) {
-                            killers[ply].unshift({ fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c });
-                            killers[ply].pop();
-                        }
-                        break;
-                    }
-                }
-                if (legalCount === 0) {
-                    return inCheck ? 999999 + depth : 0;
-                }
-                if (ttSize < 150000) {
-                    var flag = minVal <= alphaOrig ? 2 : (minVal >= betaOrig ? 1 : 0);
-                    if (!ttEntry) ttSize++;
-                    ttTable[key] = { depth: depth, score: minVal, flag: flag, best: bestMoveObj };
-                }
-                return minVal;
-            }
-        }
+if (standPat >= beta) return beta;
+if (standPat + 950 < alpha) return alpha;
+if (standPat > alpha) alpha = standPat;
+} else {
+if (standPat <= alpha) return alpha;
+if (standPat - 950 > beta) return beta;
+if (standPat < beta) beta = standPat;
+}
+var activeColor = isMax ? 'B' : 'W';
+var enemyColor = isMax ? 'W' : 'B';
+var myKing = isMax ? bKing : wKing;
+var capMoves = getFastMoves(activeColor, b, true, true, 27, null, is3200 && qDepth === maxQDepth);
+for (var i = 0; i < capMoves.length; i++) {
+var m = capMoves[i];
+var uData = makeSimMove(b, m);
+if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
+unmakeSimMove(b, m, uData);
+continue;
+}
+var score = quiesce(b, alpha, beta, !isMax, qDepth - 1);
+unmakeSimMove(b, m, uData);
+if (timeUp) return 0;
+if (isMax) {
+if (score >= beta) return beta;
+if (score > alpha) alpha = score;
+} else {
+if (score <= alpha) return alpha;
+if (score < beta) beta = score;
+}
+}
+return isMax ? alpha : beta;
+}
+function minimax(b, depth, alpha, beta, isMax, ply, allowNull) {
+if ((++nodes & 511) === 0 && Date.now() - startTime > timeLimitMs) {
+timeUp = true;
+return 0;
+}
+var key = computeHash(b, isMax);
+if (ply > 0 && allowNull) {
+if (gameRepHistory[key] >= 1) return 0;
+for (var sp = 0; sp < ply; sp++) {
+if (searchPathKeys[sp] === key) return 0;
+}
+}
+searchPathKeys[ply] = key;
+var activeColor = isMax ? 'B' : 'W';
+var enemyColor = isMax ? 'W' : 'B';
+var myKing = isMax ? bKing : wKing;
+var oppKing = isMax ? wKing : bKing;
+var inCheck = isSquareAttacked(myKing.r, myKing.c, enemyColor, b);
+if (is3200 && inCheck && ply < 22) {
+depth += 1;
+}
+var alphaOrig = alpha;
+var betaOrig = beta;
+var ttEntry = ttTable[key];
+var ttBest = null;
+if (ttEntry && ply > 0) {
+ttBest = ttEntry.best;
+if (ttEntry.depth >= depth) {
+if (ttEntry.flag === 0) return ttEntry.score;
+if (ttEntry.flag === 1 && ttEntry.score > alpha) alpha = ttEntry.score;
+else if (ttEntry.flag === 2 && ttEntry.score < beta) beta = ttEntry.score;
+if (alpha >= beta) return ttEntry.score;
+}
+}
+if (depth <= 0) return quiesce(b, alpha, beta, isMax, maxQDepth);
+if (is3200 && allowNull && !inCheck && depth >= 4 && ply > 0) {
+var R = 2;
+var nullScore = minimax(b, depth - 1 - R, alpha, beta, !isMax, ply + 1, false);
+if (timeUp) return 0;
+if (isMax && nullScore >= beta) return beta;
+if (!isMax && nullScore <= alpha) return alpha;
+}
+var movesList = getFastMoves(activeColor, b, true, false, ply, ttBest, false);
+var legalCount = 0;
+var bestMoveObj = null;
+if (isMax) {
+var maxVal = -Infinity;
+for (var i = 0; i < movesList.length; i++) {
+var m = movesList[i];
+var isQuiet = (b[m.to.r][m.to.c] === '' && !m.to.isENPassant);
+var uData = makeSimMove(b, m);
+if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
+unmakeSimMove(b, m, uData);
+continue;
+}
+legalCount++;
+var givesCheck = isSquareAttacked(oppKing.r, oppKing.c, activeColor, b);
+var score;
+if (legalCount === 1) {
+score = minimax(b, depth - 1, alpha, beta, false, ply + 1, true);
+} else {
+var reduce = (is3200 && depth >= 4 && legalCount > 6 && isQuiet && !inCheck && !givesCheck) ? 1 : 0;
+score = minimax(b, depth - 1 - reduce, alpha, alpha + 1, false, ply + 1, true);
+if (!timeUp && score > alpha) {
+score = minimax(b, depth - 1, alpha, beta, false, ply + 1, true);
+}
+}
+unmakeSimMove(b, m, uData);
+if (timeUp) return 0;
+if (score > maxVal) {
+maxVal = score;
+bestMoveObj = { fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c };
+}
+if (score > alpha) alpha = score;
+if (beta <= alpha) {
+if (isQuiet && ply < 28) {
+killers[ply].unshift({ fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c });
+killers[ply].pop();
+}
+break;
+}
+}
+if (legalCount === 0) {
+return inCheck ? -999999 - depth : 0;
+}
+if (ttSize < 150000) {
+var flag = maxVal <= alphaOrig ? 2 : (maxVal >= betaOrig ? 1 : 0);
+if (!ttEntry) ttSize++;
+ttTable[key] = { depth: depth, score: maxVal, flag: flag, best: bestMoveObj };
+}
+return maxVal;
+} else {
+var minVal = Infinity;
+for (var i = 0; i < movesList.length; i++) {
+var m = movesList[i];
+var isQuiet = (b[m.to.r][m.to.c] === '' && !m.to.isENPassant);
+var uData = makeSimMove(b, m);
+if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
+unmakeSimMove(b, m, uData);
+continue;
+}
+legalCount++;
+var givesCheck = isSquareAttacked(oppKing.r, oppKing.c, activeColor, b);
+var score;
+if (legalCount === 1) {
+score = minimax(b, depth - 1, alpha, beta, true, ply + 1, true);
+} else {
+var reduce = (is3200 && depth >= 4 && legalCount > 6 && isQuiet && !inCheck && !givesCheck) ? 1 : 0;
+score = minimax(b, depth - 1 - reduce, beta - 1, beta, true, ply + 1, true);
+if (!timeUp && score < beta) {
+score = minimax(b, depth - 1, alpha, beta, true, ply + 1, true);
+}
+}
+unmakeSimMove(b, m, uData);
+if (timeUp) return 0;
+if (score < minVal) {
+minVal = score;
+bestMoveObj = { fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c };
+}
+if (score < beta) beta = score;
+if (beta <= alpha) {
+if (isQuiet && ply < 28) {
+killers[ply].unshift({ fr: m.fr, fc: m.fc, tr: m.to.r, tc: m.to.c });
+killers[ply].pop();
+}
+break;
+}
+}
+if (legalCount === 0) {
+return inCheck ? 999999 + depth : 0;
+}
+if (ttSize < 150000) {
+var flag = minVal <= alphaOrig ? 2 : (minVal >= betaOrig ? 1 : 0);
+if (!ttEntry) ttSize++;
+ttTable[key] = { depth: depth, score: minVal, flag: flag, best: bestMoveObj };
+}
+return minVal;
+}
+}
+             
 
         var topMoves = [];
         var rootColorMap = botColor === 'W' ? isWhiteMap : isBlackMap;
@@ -1261,34 +1290,64 @@ return legal;
             }
         }
 
-        var chosenBook = bookMoves.length > 0 ? bookMoves[Math.floor(Math.random() * bookMoves.length)] : null;
+               var chosenBook = bookMoves.length > 0 ? bookMoves[Math.floor(Math.random() * bookMoves.length)] : null;
         var bestEvaluatedMoves = [];
         searchPathKeys = [computeHash(simBoard, botColor === 'B')];
+        var isBotBlack = (botColor === 'B');
 
         for (var d = 1; d <= maxDepth; d++) {
             var currentDepthMoves = [];
+            var rootAlpha = -Infinity;
+            var rootBeta = Infinity;
+
             for (var i = 0; i < topMoves.length; i++) {
                 var m = topMoves[i];
                 var uData = makeSimMove(simBoard, m);
-                var baseValue = minimax(simBoard, d - 1, -Infinity, Infinity, botColor === 'W', 1, true);
+                var baseValue;
+
+                if (i === 0 || !is3200) {
+                    baseValue = minimax(simBoard, d - 1, rootAlpha, rootBeta, !isBotBlack, 1, true);
+                } else {
+                    // Narrow window search on remaining root moves for massive speedup
+                    if (isBotBlack) {
+                        baseValue = minimax(simBoard, d - 1, rootAlpha, rootAlpha + 1, false, 1, true);
+                        if (!timeUp && baseValue > rootAlpha) {
+                            baseValue = minimax(simBoard, d - 1, rootAlpha, Infinity, false, 1, true);
+                        }
+                    } else {
+                        baseValue = minimax(simBoard, d - 1, rootBeta - 1, rootBeta, true, 1, true);
+                        if (!timeUp && baseValue < rootBeta) {
+                            baseValue = minimax(simBoard, d - 1, -Infinity, rootBeta, true, 1, true);
+                        }
+                    }
+                }
+
                 unmakeSimMove(simBoard, m, uData);
                 if (timeUp) break;
 
                 var bookBonus = 0;
                 if (chosenBook && m.fr === chosenBook.fr && m.fc === chosenBook.fc && m.to.r === chosenBook.tr && m.to.c === chosenBook.tc) {
-                    bookBonus = botColor === 'B' ? 28 : -28;
+                    bookBonus = isBotBlack ? 28 : -28;
                 }
                 var jitterRange = is3200 ? 0 : (isEarlyOpening ? 14 : 0);
                 var varietyJitter = jitterRange > 0 ? (Math.random() * jitterRange - jitterRange / 2) : 0;
-currentDepthMoves.push({ move: m, score: baseValue + bookBonus + varietyJitter });
-}
-if (timeUp) break;
-currentDepthMoves.sort(function(a, b) {
-return botColor === 'B' ? b.score - a.score : a.score - b.score;
-});
-bestEvaluatedMoves = currentDepthMoves;
-topMoves = bestEvaluatedMoves.map(function(item) { return item.move; });
-}
+                var totalScore = baseValue + bookBonus + varietyJitter;
+
+                currentDepthMoves.push({ move: m, score: totalScore });
+
+                if (is3200) {
+                    if (isBotBlack && baseValue > rootAlpha) rootAlpha = baseValue;
+                    if (!isBotBlack && baseValue < rootBeta) rootBeta = baseValue;
+                }
+            }
+            if (timeUp) break;
+            currentDepthMoves.sort(function(a, b) {
+                return isBotBlack ? b.score - a.score : a.score - b.score;
+            });
+            bestEvaluatedMoves = currentDepthMoves;
+            topMoves = bestEvaluatedMoves.map(function(item) { return item.move; });
+        }
+
 if (bestEvaluatedMoves.length === 0) {
 bestEvaluatedMoves = [{ move: topMoves[zero], score: evalEnhanced(simBoard) }];
 }
