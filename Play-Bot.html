@@ -1325,13 +1325,24 @@ return minVal;
                 unmakeSimMove(simBoard, m, uData);
                 if (timeUp) break;
 
-                var bookBonus = 0;
+                               var bookBonus = 0;
                 if (chosenBook && m.fr === chosenBook.fr && m.fc === chosenBook.fc && m.to.r === chosenBook.tr && m.to.c === chosenBook.tc) {
-                    bookBonus = isBotBlack ? 28 : -28;
+                    bookBonus = isBotBlack ? 35 : -35;
                 }
-                var jitterRange = is3200 ? 0 : (isEarlyOpening ? 14 : 0);
+
+                // Penalize moving an already-developed piece multiple times in the first 10 moves
+                var repeatPenalty = 0;
+                var movingP = bd[m.fr][m.fc];
+                var isStartRow = isBotBlack ? (m.fr === 0 || m.fr === 1) : (m.fr === 7 || m.fr === 6);
+                var isCapOrCastle = (bd[m.to.r][m.to.c] !== '' || m.to.isCastle);
+                if (moveHistory.length < 10 && !isStartRow && !isCapOrCastle && movingP !== 'P' && movingP !== 'p') {
+                    repeatPenalty = isBotBlack ? -24 : 24;
+                }
+
+                var jitterRange = is3200 ? 0 : (isEarlyOpening ? 6 : 0);
                 var varietyJitter = jitterRange > 0 ? (Math.random() * jitterRange - jitterRange / 2) : 0;
-                var totalScore = baseValue + bookBonus + varietyJitter;
+                var totalScore = baseValue + bookBonus + repeatPenalty + varietyJitter;
+
 
                 currentDepthMoves.push({ move: m, score: totalScore });
 
