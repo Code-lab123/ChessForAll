@@ -866,7 +866,9 @@ return legal;
             }
         }
     }
-       var prevBotScore = 0;
+           var prevBotScore = 0;
+    var lastTrashLine = "";
+
     function updateTrashTalk(botScore, botColor, eventType) {
         var box = document.getElementById('trashTalkBox');
         var mood = document.getElementById('botMood');
@@ -888,42 +890,82 @@ return legal;
             }
         }
 
-        function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+        function pick(arr) {
+            if (arr.length === 1) return arr[0];
+            var choice = arr[Math.floor(Math.random() * arr.length)];
+            var tries = 0;
+            while (choice === lastTrashLine && tries < 8) {
+                choice = arr[Math.floor(Math.random() * arr.length)];
+                tries++;
+            }
+            lastTrashLine = choice;
+            return choice;
+        }
 
         var lines = {
             mateWin: [
                 '"Checkmate. Honestly, I expected more of a warm-up."',
                 '"Game over. Did you even look at the whole board?"',
                 '"That’s mate. Hit Restart whenever you’re ready to lose again."',
-                '"I solved that mating net five moves ago. Good effort, though."'
+                '"I solved that mating net five moves ago. Good effort, though."',
+                '"Lights out. Your king had nowhere left to hide."',
+                '"GG. Maybe stick to Checkers for a bit?"'
             ],
             mateLose: [
                 '"Okay, no way you found that without an engine open."',
-                '"Enjoy it—that’s the last time I go easy on you."'
+                '"Enjoy it—that’s the last time I go easy on you."',
+                '"Fine, you got me. Rematch right now."'
             ],
             forcedMate: [
                 '"Forced mate is on the board. You can resign anytime."',
                 '"There are zero escape squares left. Just accept it."',
-                '"My silicon brain already wrapped this up. Watch."'
+                '"My silicon brain already wrapped this up. Watch."',
+                '"Count the moves—your king is already trapped."',
+                '"You can stall with checks, or you can hit Restart now."'
             ],
             blunder: [
                 '"Wait… you actually meant to play that?"',
                 '"Free material! Do you always donate pieces like this?"',
                 '"Yikes. My evaluation bar just went through the roof."',
-                '"I don’t even have to try when you hand me the game like that."'
+                '"I don’t even have to try when you hand me the game like that."',
+                '"Bold strategy. Completely losing, of course, but bold."',
+                '"Did your mouse slip, or are you playing giveaway chess?"',
+                '"Oh no… you didn’t see that tactic at all, did you?"'
+            ],
+            capture: [
+                '"Yoink. I’ll take that off your hands."',
+                '"One less piece for you to blunder later."',
+                '"Cleaning up the board one piece at a time."',
+                '"Thanks for leaving that undefended."',
+                '"Slowly dismantling your whole setup."'
+            ],
+            check: [
+                '"Check. Keep your king moving."',
+                '"Nowhere to hide—deal with the check."',
+                '"Knock, knock. Your king isn’t safe there."',
+                '"Check! Let’s see you squirm out of this."'
             ],
             undo: [
                 '"Hitting Undo? Yeah, I’d take that move back too."',
-                '"Time travel won’t save your position."'
+                '"Time travel won’t save your position."',
+                '"No take-backs in real chess, you know."',
+                '"Rewinding the clock won’t fix your opening."'
             ],
             winning: [
                 '"Up material and squeezing every square. Pure pain from here."',
                 '"Every piece trade just brings you closer to defeat."',
-                '"You’re completely tied up. Nowhere to run."'
+                '"You’re completely tied up. Nowhere to run."',
+                '"My position plays itself at this point."',
+                '"You’re running out of useful moves fast."',
+                '"Just slowly tightening the screws on your position."',
+                '"Even a grandmaster couldn’t save your side of the board now."'
             ],
             losing: [
                 '"Hold on… who taught you how to play like this?"',
-                '"Don’t celebrate yet. One slip and I’m swindling this whole game."'
+                '"Don’t celebrate yet. One slip and I’m swindling this whole game."',
+                '"Okay, you actually found a decent sequence there."',
+                '"I’m down material, not out. Watch your back rank."',
+                '"Careful—I’m setting traps on every single move now."'
             ],
             normal: [
                 '"Cute move. Completely harmless, though."',
@@ -931,7 +973,13 @@ return legal;
                 '"You’re surviving… barely."',
                 '"Solid, I guess. Let’s see how long you hold out."',
                 '"Are you guessing, or is there an actual plan behind that?"',
-                '"Tick-tock. The pressure is only going up from here."'
+                '"Tick-tock. The pressure is only going up from here."',
+                '"I’ve seen this exact setup a million times. It doesn’t end well for you."',
+                '"Not bad, not great. Keep digging."',
+                '"You’re leaving way too many weak squares behind."',
+                '"Is that really the best move on the board?"',
+                '"Go ahead, overthink it. You’re still walking into my prep."',
+                '"Every tempo counts, and you’re wasting yours."'
             ],
             repeatDraw: [
                 '"Threefold repetition! Nice try—I actually know the rulebook."',
@@ -957,6 +1005,12 @@ return legal;
         } else if (swing >= 180) {
             avatar.innerText = '😂'; mood.innerText = 'Laughing at Blunder';
             box.innerText = pick(lines.blunder);
+        } else if (eventType === 'check') {
+            avatar.innerText = '⚡'; mood.innerText = 'Attacking';
+            box.innerText = pick(lines.check);
+        } else if (eventType === 'capture') {
+            avatar.innerText = '🦈'; mood.innerText = 'Hunting Material';
+            box.innerText = pick(lines.capture);
         } else if (perspectiveScore >= 250) {
             avatar.innerText = '😎'; mood.innerText = 'Crushing';
             box.innerText = pick(lines.winning);
@@ -968,6 +1022,7 @@ return legal;
             box.innerText = pick(lines.normal);
         }
     }
+
 
 
                function bot() {
@@ -1535,7 +1590,10 @@ finalizeSAN(botSanBase, playerColor);
 saveState();
 turn = playerColor;
 endState(playerColor);
-updateTrashTalk(bestEvaluatedMoves[targetIndex].score, botColor, 'move');
+        var botDeliveredCheck = check(playerColor, bd, null);
+        var botEvent = botDeliveredCheck ? 'check' : (botIsCapture ? 'capture' : 'move');
+        updateTrashTalk(bestEvaluatedMoves[targetIndex].score, botColor, botEvent);
+
 
 draw();
 }
