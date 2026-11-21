@@ -1574,141 +1574,142 @@ turn = 'W';
 document.getElementById('msg').innerText = "Your Turn (White)";
 }
 }
-function endState(cl) {
-var currentStr = JSON.stringify(bd);
-var repeatCount = 0;
-for (var i = 0; i < boardHistory.length; i++) {
-var entry = JSON.parse(boardHistory[i]);
-var hBoard = Array.isArray(entry) ? entry : entry.bd;
-if (JSON.stringify(hBoard) === currentStr) repeatCount++;
-}
-if (repeatCount >= 3) {
-              updateTrashTalk(0, document.getElementById('pColor').value === 'W' ? 'B' : 'W', 'repeatDraw');
+    function endState(cl) {
+        var currentStr = JSON.stringify(bd);
+        var repeatCount = 0;
+        for (var i = 0; i < boardHistory.length; i++) {
+            var entry = JSON.parse(boardHistory[i]);
+            var hBoard = Array.isArray(entry) ? entry : entry.bd;
+            if (JSON.stringify(hBoard) === currentStr) repeatCount++;
+        }
+        var botCl = document.getElementById('pColor').value === 'W' ? 'B' : 'W';
+        if (repeatCount >= 3) {
+            document.getElementById('msg').innerText = "Draw by Threefold Repetition!";
+            gameResult = '1/2-1/2';
+            turn = 'E';
+            updateTrashTalk(0, botCl, 'repeatDraw');
+            return true;
+        }
+        if (halfMoves >= 100) {
+            document.getElementById('msg').innerText = "Draw by 50-Move Rule!";
+            gameResult = '1/2-1/2';
+            turn = 'E';
+            return true;
+        }
+        if (isInsufficientMaterial()) {
+            document.getElementById('msg').innerText = "Draw by Insufficient Material!";
+            gameResult = '1/2-1/2';
+            turn = 'E';
+            return true;
+        }
 
-document.getElementById('msg').innerText = "Draw by Threefold Repetition!";
-gameResult = '1/2-1/2';
-turn = 'E';
-return true;
-}
-if (halfMoves >= 100) {
-document.getElementById('msg').innerText = "Draw by 50-Move Rule!";
-gameResult = '1/2-1/2';
-turn = 'E';
-return true;
-}
-if (isInsufficientMaterial()) {
-document.getElementById('msg').innerText = "Draw by Insufficient Material!";
-gameResult = '1/2-1/2';
-turn = 'E';
-return true;
-}
-var any = false;
-for (var r = 0; r < 8; r++) {
-for (var c = 0; c < 8; c++) {
-if (bd[r][c] && getColor(bd[r][c]) === cl && getLegal(r, c, bd, false, null).length > 0) {
-any = true; break;
-}
-}
-if (any) break;
-}
-var box = document.getElementById('msg');
-var playerColor = document.getElementById('pColor').value;
-var colorLabel = playerColor === 'W' ? 'White' : 'Black';
-if (!any) {
-if (check(cl, bd, null)) {
-              updateTrashTalk(0, cl === playerColor ? 'B' : 'W', cl === playerColor ? 'mateWin' : 'mateLose');
+        var any = false;
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                if (bd[r][c] && getColor(bd[r][c]) === cl && getLegal(r, c, bd, false, null).length > 0) {
+                    any = true; break;
+                }
+            }
+            if (any) break;
+        }
 
-box.innerText = cl === playerColor ? "Checkmate! Bot wins." : "Checkmate! You win!";
-gameResult = (cl === 'W') ? '0-1' : '1-0';
-} else {
-box.innerText = "Draw / Stalemate!";
-gameResult = '1/2-1/2';
-}
-turn = 'E';
-return true;
-}
-box.innerText = check(cl, bd, null) ? "Your Turn - CHECK!" : (cl === playerColor ? "Your Turn (" + colorLabel + ")" : "Bot calculating...");
-return false;
-}
-function undo() {
-var playerColor = document.getElementById('pColor').value;
-var minHistory = playerColor === 'W' ? 3 : 4;
-var zero = 0, one = 1, four = 4, seven = 7;
-if (window.pendingPromo) {
-window.pendingPromo = null;
-document.getElementById('promoModal').style.display = 'none';
-var curSnap = JSON.parse(boardHistory[boardHistory.length - one]);
-bd = Array.isArray(curSnap) ? curSnap : curSnap.bd;
-epSquare = curSnap.epSquare || null;
-moveHistory = curSnap.moveHistory ? curSnap.moveHistory.slice() : [];
-lastMove = curSnap.lastMove || null;
-halfMoves = curSnap.halfMoves || 0;
-gameResult = '*';
-sel = null; moves = []; turn = playerColor;
-renderMoveList(); endState(playerColor); draw();
-return;
-}
-if (boardHistory.length < minHistory) return;
-if (turn !== playerColor && turn !== 'E') return;
-boardHistory.pop();
-boardHistory.pop();
-var prev = JSON.parse(boardHistory[boardHistory.length - one]);
-bd = Array.isArray(prev) ? prev : prev.bd;
-epSquare = prev.epSquare || null;
-moveHistory = prev.moveHistory ? prev.moveHistory.slice() : [];
-lastMove = prev.lastMove || null;
-halfMoves = prev.halfMoves || 0;
-gameResult = '*';
-hasMoved = {
-'W_K': false, 'W_R1': false, 'W_R8': false,
-'B_K': false, 'B_R1': false, 'B_R8': false
-};
-for (var i = 0; i < boardHistory.length; i++) {
-var entry = JSON.parse(boardHistory[i]);
-var hBoard = Array.isArray(entry) ? entry : entry.bd;
-if (hBoard[seven][four] !== 'K') hasMoved['W_K'] = true;
-if (hBoard[seven][zero] !== 'R') hasMoved['W_R1'] = true;
-if (hBoard[seven][seven] !== 'R') hasMoved['W_R8'] = true;
-if (hBoard[zero][four] !== 'k') hasMoved['B_K'] = true;
-if (hBoard[zero][zero] !== 'r') hasMoved['B_R1'] = true;
-if (hBoard[zero][seven] !== 'r') hasMoved['B_R8'] = true;
-}
-sel = null; moves = []; turn = playerColor;
-renderMoveList(); endState(playerColor); draw();
-}
-function rst() {
-bd = JSON.parse(JSON.stringify(start));
-sel = null; moves = []; turn = 'W';
-boardHistory = [];
-moveHistory = [];
-lastMove = null;
-halfMoves = 0;
-gameResult = '*';
-saveState();
-epSquare = null;
-hasMoved = { 'W_K': false, 'W_R1': false, 'W_R8': false, 'B_K': false, 'B_R1': false, 'B_R8': false };
-document.getElementById('pColor').disabled = false;
-document.getElementById('diff').disabled = false;
-document.getElementById('pColor').value = 'W';
-document.getElementById('msg').innerText = "Your Turn (White)";
-          updateTrashTalk(-prevBotScore, playerColor === 'W' ? 'B' : 'W', 'undo');
+        var box = document.getElementById('msg');
+        var playerColor = document.getElementById('pColor').value;
+        var colorLabel = playerColor === 'W' ? 'White' : 'Black';
+        if (!any) {
+            if (check(cl, bd, null)) {
+                box.innerText = cl === playerColor ? "Checkmate! Bot wins." : "Checkmate! You win!";
+                gameResult = (cl === 'W') ? '0-1' : '1-0';
+                updateTrashTalk(0, botCl, cl === playerColor ? 'mateWin' : 'mateLose');
+            } else {
+                box.innerText = "Draw / Stalemate!";
+                gameResult = '1/2-1/2';
+            }
+            turn = 'E';
+            return true;
+        }
+        box.innerText = check(cl, bd, null) ? "Your Turn - CHECK!" : (cl === playerColor ? "Your Turn (" + colorLabel + ")" : "Bot calculating...");
+        return false;
+    }
 
-renderMoveList();
-          prevBotScore = 0;
+    function undo() {
+        var playerColor = document.getElementById('pColor').value;
+        var minHistory = playerColor === 'W' ? 3 : 4;
+        var zero = 0, one = 1, four = 4, seven = 7;
+
+        if (window.pendingPromo) {
+            window.pendingPromo = null;
+            document.getElementById('promoModal').style.display = 'none';
+            var curSnap = JSON.parse(boardHistory[boardHistory.length - one]);
+            bd = Array.isArray(curSnap) ? curSnap : curSnap.bd;
+            epSquare = curSnap.epSquare || null;
+            moveHistory = curSnap.moveHistory ? curSnap.moveHistory.slice() : [];
+            lastMove = curSnap.lastMove || null;
+            halfMoves = curSnap.halfMoves || 0;
+            gameResult = '*';
+            sel = null; moves = []; turn = playerColor;
+            renderMoveList(); endState(playerColor); draw();
+            return;
+        }
+
+        if (boardHistory.length < minHistory) return;
+        if (turn !== playerColor && turn !== 'E') return;
+
+        boardHistory.pop();
+        boardHistory.pop();
+        var prev = JSON.parse(boardHistory[boardHistory.length - one]);
+        bd = Array.isArray(prev) ? prev : prev.bd;
+        epSquare = prev.epSquare || null;
+        moveHistory = prev.moveHistory ? prev.moveHistory.slice() : [];
+        lastMove = prev.lastMove || null;
+        halfMoves = prev.halfMoves || 0;
+        gameResult = '*';
+
+        hasMoved = {
+            'W_K': false, 'W_R1': false, 'W_R8': false,
+            'B_K': false, 'B_R1': false, 'B_R8': false
+        };
+        for (var i = 0; i < boardHistory.length; i++) {
+            var entry = JSON.parse(boardHistory[i]);
+            var hBoard = Array.isArray(entry) ? entry : entry.bd;
+            if (hBoard[seven][four] !== 'K') hasMoved['W_K'] = true;
+            if (hBoard[seven][zero] !== 'R') hasMoved['W_R1'] = true;
+            if (hBoard[seven][seven] !== 'R') hasMoved['W_R8'] = true;
+            if (hBoard[zero][four] !== 'k') hasMoved['B_K'] = true;
+            if (hBoard[zero][zero] !== 'r') hasMoved['B_R1'] = true;
+            if (hBoard[zero][seven] !== 'r') hasMoved['B_R8'] = true;
+        }
+        sel = null; moves = []; turn = playerColor;
+        updateTrashTalk(-prevBotScore, playerColor === 'W' ? 'B' : 'W', 'undo');
+        renderMoveList(); endState(playerColor); draw();
+    }
+
+    function rst() {
+        bd = JSON.parse(JSON.stringify(start));
+        sel = null; moves = []; turn = 'W';
+        boardHistory = [];
+        moveHistory = [];
+        lastMove = null;
+        halfMoves = 0;
+        gameResult = '*';
+        saveState();
+        epSquare = null;
+        hasMoved = { 'W_K': false, 'W_R1': false, 'W_R8': false, 'B_K': false, 'B_R1': false, 'B_R8': false };
+        document.getElementById('pColor').disabled = false;
+        document.getElementById('diff').disabled = false;
+        document.getElementById('pColor').value = 'W';
+        document.getElementById('msg').innerText = "Your Turn (White)";
+        prevBotScore = 0;
         if (document.getElementById('trashTalkBox')) {
             document.getElementById('trashTalkBox').innerText = '"Fresh board. Let\'s see how long you last this time."';
             document.getElementById('botAvatar').innerText = '🤖';
             document.getElementById('botMood').innerText = 'Ready to crush';
             document.getElementById('evalReadout').innerText = 'Eval: 0.00';
         }
+        renderMoveList();
+        draw();
+    }
 
-draw();
-}
-if (document.readyState === 'loading') {
-document.addEventListener('DOMContentLoaded', draw);
-} else {
-draw();
-}
 </script>
 <br>
   <hr>
