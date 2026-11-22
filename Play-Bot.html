@@ -30,7 +30,7 @@
         </div>
     </div>
 
-    <!-- Right Side: Your Existing Chess Board -->
+    <!-- Right Side: Chess Board & In-Board Report Overlay -->
     <div style="text-align: center; width: 400px; color: #fff; font-family: sans-serif; background-color: #1e1e24; padding: 15px; border-radius: 8px; position: relative; box-sizing: border-box;">
         <div id="msg" style="font-weight: bold; margin-bottom: 10px; font-size: 16px; font-family: sans-serif;">Your Turn (White)</div>
         <div style="margin-bottom: 10px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
@@ -62,8 +62,25 @@
             </div>
         </div>
 
-        <div style="display: flex; justify-content: center; align-items: stretch;">
+        <!-- Board + Overlay Wrapper -->
+        <div style="display: flex; justify-content: center; align-items: stretch; position: relative; width: 366px; margin: 0 auto;">
             <table id="tbl" style="border-collapse: collapse; margin: 0; border: 3px solid #3c4043; width: 360px; height: 360px; table-layout: fixed;"></table>
+
+            <!-- Post-Game Accuracy & Move Grader Overlay -->
+            <div id="reportOverlay" style="display: none; position: absolute; top: 3px; left: 3px; width: 360px; height: 360px; background: rgba(22, 22, 27, 0.95); color: #fff; box-sizing: border-box; padding: 14px; flex-direction: column; justify-content: space-between; z-index: 50; text-align: left; font-family: sans-serif;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3c4043; padding-bottom: 8px; margin-bottom: 10px;">
+                        <span id="repTitle" style="font-weight: bold; font-size: 16px; color: #7fffd4;">Game Report</span>
+                        <button onclick="toggleReport()" style="background: #2b2b36; color: #ccc; border: 1px solid #3c4043; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer;">View Board</button>
+                    </div>
+                    <div id="repSummary" style="display: flex; gap: 8px; margin-bottom: 10px;"></div>
+                    <div id="repCounts" style="background: #2b2b36; border-radius: 6px; padding: 8px 10px; font-size: 12px; line-height: 1.6; margin-bottom: 10px;"></div>
+                </div>
+                <div style="font-size: 11px; color: #aaa; border-top: 1px solid #3c4043; padding-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Click <b>Restart Game</b> below to play again.</span>
+                    <span id="repBadge" style="color: #7fffd4; font-weight: bold;"></span>
+                </div>
+            </div>
         </div>
 
         <div id="pgnBox" style="margin-top: 8px; background: #2b2b36; border: 1px solid #3c4043; border-radius: 4px; padding: 6px 8px; height: 38px; overflow-y: auto; text-align: left; font-size: 12px; color: #dcdcdc; line-height: 1.4; font-family: monospace;">Moves will appear here...</div>
@@ -78,6 +95,7 @@
         </div>
     </div>
 </div>
+
 
 <script>
     var start = [
@@ -96,7 +114,9 @@
     var vals = {'p':100,'n':310,'b':330,'r':500,'q':920,'k':100000,'P':100,'N':310,'B':330,'R':500,'Q':920,'K':100000};
     var isWhiteMap = {'P':1,'N':1,'B':1,'R':1,'Q':1,'K':1};
     var isBlackMap = {'p':1,'n':1,'b':1,'r':1,'q':1,'k':1};
-    var boardHistory = [];
+        var boardHistory = [];
+    var evalHistory = [];
+
     var moveHistory = [];
     var lastMove = null;
     var halfMoves = 0;
@@ -970,7 +990,9 @@ return score;
 
                 var nextTurn = playerColor === 'W' ? 'B' : 'W';
                 finalizeSAN(sanPrefix, nextTurn);
+                recordEval();
                 saveState();
+
                 sel = null; moves = [];
 
                 if (endState(nextTurn)) { draw(); return; }
@@ -1816,7 +1838,9 @@ epSquare = ((bd[bm.to.r][bm.to.c] === 'p' || bd[bm.to.r][bm.to.c] === 'P') && Ma
 : null;
 var playerColor = document.getElementById('pColor').value;
 finalizeSAN(botSanBase, playerColor);
+recordEval();
 saveState();
+
 turn = playerColor;
 endState(playerColor);
 var botDeliveredCheck = check(playerColor, bd, null);
@@ -1853,7 +1877,9 @@ window.pendingPromo = null;
 epSquare = null;
 var nextColor = cl === 'W' ? 'B' : 'W';
 finalizeSAN(sanBase, nextColor);
+recordEval();
 saveState();
+
 if (endState(nextColor)) { draw(); return; }
 turn = nextColor;
 document.getElementById('msg').innerText = "Bot thinking...";
@@ -1874,11 +1900,105 @@ turn = 'W';
 document.getElementById('msg').innerText = "Your Turn (White)";
 }
 }
-    function endState(cl) {
+      function recordEval() {
+        var raw = -evalBoard(bd);
+        evalHistory.push(raw);
+    }
+
+    function toggleReport() {
+        var ov = document.getElementById('reportOverlay');
+        if (!ov) return;
+        ov.style.display = (ov.style.display === 'none') ? 'flex' : 'none';
+    }
+
+    function showGameReport(titleText) {
+        var ov = document.getElementById('reportOverlay');
+        if (!ov) return;
+
+        var playerColor = document.getElementById('pColor').value;
+        var pIsWhite = (playerColor === 'W');
+        var pLoss = [], bLoss = [];
+        var stats = {
+            p: { best: 0, good: 0, inacc: 0, mistake: 0, blunder: 0 },
+            b: { best: 0, good: 0, inacc: 0, mistake: 0, blunder: 0 }
+        };
+
+        for (var i = 0; i < moveHistory.length; i++) {
+            var whiteMoved = (i % 2 === 0);
+            var isPlayerMove = (whiteMoved === pIsWhite);
+            var before = (i < evalHistory.length) ? evalHistory.at(i) : 0;
+            var after = (i + 1 < evalHistory.length) ? evalHistory.at(i + 1) : before;
+
+            var cpLoss = whiteMoved ? Math.max(0, before - after) : Math.max(0, after - before);
+            if (Math.abs(before) > 9000 || Math.abs(after) > 9000) cpLoss = 0;
+
+            var bucket = isPlayerMove ? stats.p : stats.b;
+            if (cpLoss <= 25) bucket.best++;
+            else if (cpLoss <= 65) bucket.good++;
+            else if (cpLoss <= 130) bucket.inacc++;
+            else if (cpLoss <= 260) bucket.mistake++;
+            else bucket.blunder++;
+
+            if (isPlayerMove) pLoss.push(cpLoss);
+            else bLoss.push(cpLoss);
+        }
+
+        function calcAccuracy(losses) {
+            if (losses.length === 0) return '100.0';
+            var sum = 0;
+            for (var j = 0; j < losses.length; j++) {
+                var lossVal = losses.at(j);
+                var winPctDrop = 100 * (2 / (1 + Math.exp(-0.00368 * lossVal)) - 1);
+                var moveAcc = Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * winPctDrop) - 3.1669));
+                sum += moveAcc;
+            }
+            return (sum / losses.length).toFixed(1);
+        }
+
+        function estRating(acc, diffVal) {
+            var base = diffVal === '3200' ? 2350 : (diffVal === '1600' ? 1650 : (diffVal === '1200' ? 1250 : 850));
+            var adj = Math.round((parseFloat(acc) - 85) * 28);
+            return Math.max(400, Math.min(2850, base + adj));
+        }
+
+        var pAcc = calcAccuracy(pLoss);
+        var bAcc = calcAccuracy(bLoss);
+        var diffVal = document.getElementById('diff').value;
+        var pElo = estRating(pAcc, '3200');
+        var bElo = estRating(bAcc, diffVal);
+
+        document.getElementById('repTitle').innerText = titleText;
+        document.getElementById('repSummary').innerHTML =
+            '<div style="flex:1; background:#2b2b36; padding:8px; border-radius:6px; border-top:3px solid #7fffd4; text-align:center;">' +
+                '<div style="font-size:11px; color:#aaa;">YOU (' + (pIsWhite ? 'White' : 'Black') + ')</div>' +
+                '<div style="font-size:20px; font-weight:bold; color:#fff; margin:2px 0;">' + pAcc + '%</div>' +
+                '<div style="font-size:11px; color:#7fffd4;">Est. Rating: ' + pElo + '</div>' +
+            '</div>' +
+            '<div style="flex:1; background:#2b2b36; padding:8px; border-radius:6px; border-top:3px solid #ff7f7f; text-align:center;">' +
+                '<div style="font-size:11px; color:#aaa;">CLUB BOT</div>' +
+                '<div style="font-size:20px; font-weight:bold; color:#fff; margin:2px 0;">' + bAcc + '%</div>' +
+                '<div style="font-size:11px; color:#ff7f7f;">Est. Rating: ' + bElo + '</div>' +
+            '</div>';
+
+        document.getElementById('repCounts').innerHTML =
+            '<div style="display:flex; justify-content:space-between; border-bottom:1px solid #3c4043; padding-bottom:3px; margin-bottom:4px; font-weight:bold; color:#bbb;">' +
+                '<span>Move Quality</span><span>You &nbsp;|&nbsp; Bot</span>' +
+            '</div>' +
+            '<div style="display:flex; justify-content:space-between; color:#7fffd4;"><span>★ Best / Great</span><span>' + stats.p.best + ' &nbsp;|&nbsp; ' + stats.b.best + '</span></div>' +
+            '<div style="display:flex; justify-content:space-between; color:#a8e6cf;"><span>✓ Good</span><span>' + stats.p.good + ' &nbsp;|&nbsp; ' + stats.b.good + '</span></div>' +
+            '<div style="display:flex; justify-content:space-between; color:#ffd54f;"><span>?! Inaccuracies</span><span>' + stats.p.inacc + ' &nbsp;|&nbsp; ' + stats.b.inacc + '</span></div>' +
+            '<div style="display:flex; justify-content:space-between; color:#ff8a65;"><span>? Mistakes</span><span>' + stats.p.mistake + ' &nbsp;|&nbsp; ' + stats.b.mistake + '</span></div>' +
+            '<div style="display:flex; justify-content:space-between; color:#ff5252;"><span>?? Blunders</span><span>' + stats.p.blunder + ' &nbsp;|&nbsp; ' + stats.b.blunder + '</span></div>';
+
+        document.getElementById('repBadge').innerText = moveHistory.length + ' plies';
+        ov.style.display = 'flex';
+    }
+
+       function endState(cl) {
         var currentStr = JSON.stringify(bd);
         var repeatCount = 0;
         for (var i = 0; i < boardHistory.length; i++) {
-            var entry = JSON.parse(boardHistory[i]);
+            var entry = JSON.parse(boardHistory.at(i));
             var hBoard = Array.isArray(entry) ? entry : entry.bd;
             if (JSON.stringify(hBoard) === currentStr) repeatCount++;
         }
@@ -1888,18 +2008,21 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             gameResult = '1/2-1/2';
             turn = 'E';
             updateTrashTalk(0, botCl, 'repeatDraw');
+            showGameReport("Draw — Threefold Repetition");
             return true;
         }
         if (halfMoves >= 100) {
             document.getElementById('msg').innerText = "Draw by 50-Move Rule!";
             gameResult = '1/2-1/2';
             turn = 'E';
+            showGameReport("Draw — 50-Move Rule");
             return true;
         }
         if (isInsufficientMaterial()) {
             document.getElementById('msg').innerText = "Draw by Insufficient Material!";
             gameResult = '1/2-1/2';
             turn = 'E';
+            showGameReport("Draw — Insufficient Material");
             return true;
         }
 
@@ -1921,9 +2044,11 @@ document.getElementById('msg').innerText = "Your Turn (White)";
                 box.innerText = cl === playerColor ? "Checkmate! Bot wins." : "Checkmate! You win!";
                 gameResult = (cl === 'W') ? '0-1' : '1-0';
                 updateTrashTalk(0, botCl, cl === playerColor ? 'mateWin' : 'mateLose');
+                showGameReport(cl === playerColor ? "Checkmate — Bot Wins" : "Checkmate — You Win!");
             } else {
                 box.innerText = "Draw / Stalemate!";
                 gameResult = '1/2-1/2';
+                showGameReport("Draw — Stalemate");
             }
             turn = 'E';
             return true;
@@ -1935,12 +2060,11 @@ document.getElementById('msg').innerText = "Your Turn (White)";
     function undo() {
         var playerColor = document.getElementById('pColor').value;
         var minHistory = playerColor === 'W' ? 3 : 4;
-        var zero = 0, one = 1, four = 4, seven = 7;
 
         if (window.pendingPromo) {
             window.pendingPromo = null;
             document.getElementById('promoModal').style.display = 'none';
-            var curSnap = JSON.parse(boardHistory[boardHistory.length - one]);
+            var curSnap = JSON.parse(boardHistory.at(-1));
             bd = Array.isArray(curSnap) ? curSnap : curSnap.bd;
             epSquare = curSnap.epSquare || null;
             moveHistory = curSnap.moveHistory ? curSnap.moveHistory.slice() : [];
@@ -1957,7 +2081,10 @@ document.getElementById('msg').innerText = "Your Turn (White)";
 
         boardHistory.pop();
         boardHistory.pop();
-        var prev = JSON.parse(boardHistory[boardHistory.length - one]);
+        evalHistory.pop();
+        evalHistory.pop();
+
+        var prev = JSON.parse(boardHistory.at(-1));
         bd = Array.isArray(prev) ? prev : prev.bd;
         epSquare = prev.epSquare || null;
         moveHistory = prev.moveHistory ? prev.moveHistory.slice() : [];
@@ -1970,16 +2097,17 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             'B_K': false, 'B_R1': false, 'B_R8': false
         };
         for (var i = 0; i < boardHistory.length; i++) {
-            var entry = JSON.parse(boardHistory[i]);
+            var entry = JSON.parse(boardHistory.at(i));
             var hBoard = Array.isArray(entry) ? entry : entry.bd;
-            if (hBoard[seven][four] !== 'K') hasMoved['W_K'] = true;
-            if (hBoard[seven][zero] !== 'R') hasMoved['W_R1'] = true;
-            if (hBoard[seven][seven] !== 'R') hasMoved['W_R8'] = true;
-            if (hBoard[zero][four] !== 'k') hasMoved['B_K'] = true;
-            if (hBoard[zero][zero] !== 'r') hasMoved['B_R1'] = true;
-            if (hBoard[zero][seven] !== 'r') hasMoved['B_R8'] = true;
+            if (hBoard[7][4] !== 'K') hasMoved['W_K'] = true;
+            if (hBoard[7][0] !== 'R') hasMoved['W_R1'] = true;
+            if (hBoard[7][7] !== 'R') hasMoved['W_R8'] = true;
+            if (hBoard[0][4] !== 'k') hasMoved['B_K'] = true;
+            if (hBoard[0][0] !== 'r') hasMoved['B_R1'] = true;
+            if (hBoard[0][7] !== 'r') hasMoved['B_R8'] = true;
         }
         sel = null; moves = []; turn = playerColor;
+        if (document.getElementById('reportOverlay')) document.getElementById('reportOverlay').style.display = 'none';
         updateTrashTalk(-prevBotScore, playerColor === 'W' ? 'B' : 'W', 'undo');
         renderMoveList(); endState(playerColor); draw();
     }
@@ -1988,6 +2116,7 @@ document.getElementById('msg').innerText = "Your Turn (White)";
         bd = JSON.parse(JSON.stringify(start));
         sel = null; moves = []; turn = 'W';
         boardHistory = [];
+        evalHistory = [];
         moveHistory = [];
         lastMove = null;
         halfMoves = 0;
@@ -2000,6 +2129,7 @@ document.getElementById('msg').innerText = "Your Turn (White)";
         document.getElementById('pColor').value = 'W';
         document.getElementById('msg').innerText = "Your Turn (White)";
         prevBotScore = 0;
+        if (document.getElementById('reportOverlay')) document.getElementById('reportOverlay').style.display = 'none';
         if (document.getElementById('trashTalkBox')) {
             document.getElementById('trashTalkBox').innerText = '"Fresh board. Let\'s see how long you last this time."';
             document.getElementById('botAvatar').innerText = '🤖';
@@ -2009,6 +2139,7 @@ document.getElementById('msg').innerText = "Your Turn (White)";
         renderMoveList();
         draw();
     }
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', draw);
     } else {
