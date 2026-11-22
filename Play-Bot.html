@@ -1656,7 +1656,15 @@ if (!illegal) topCodes.push(code);
 }
 if (topCodes.length === 0) return;
 var bookMoves = [];
+if (moveHistory.length === 0) {
+    bookMoves = [
+        encodeMove(6, 4, 4, 4, false, false),
+        encodeMove(6, 3, 4, 3, false, false),
+        encodeMove(6, 2, 4, 2, false, false),
+        encodeMove(7, 6, 5, 5, false, false)
+    ];
 } else if (moveHistory.length === 1) {
+
     if (bd[4][4] === 'P') {
         bookMoves = [
             encodeMove(1, 2, 3, 2, false, false),
@@ -1775,15 +1783,16 @@ halfMoves = (botMovingPiece === 'p' || botMovingPiece === 'P' || botIsCapture) ?
 if (bd[bm.to.r][bm.to.c] === 'p' && bm.to.r === 7) bd[bm.to.r][bm.to.c] = 'q';
 if (bd[bm.to.r][bm.to.c] === 'P' && bm.to.r === 0) bd[bm.to.r][bm.to.c] = 'Q';
 if ((bd[bm.to.r][bm.to.c] === 'K' || bd[bm.to.r][bm.to.c] === 'k') && Math.abs(bm.to.c - botFromCol) === 2) {
-if (bm.to.c === 6) {
-bd[bm.to.r].splice(5, 1, bd[bm.to.r]);
-bd[bm.to.r].splice(7, 1, '');
+    if (bm.to.c === 6) {
+        bd[bm.to.r][5] = bd[bm.to.r][7];
+        bd[bm.to.r][7] = '';
+    }
+    if (bm.to.c === 2) {
+        bd[bm.to.r][3] = bd[bm.to.r][0];
+        bd[bm.to.r][0] = '';
+    }
 }
-if (bm.to.c === 2) {
-bd[bm.to.r].splice(3, 1, bd[bm.to.r]);
-bd[bm.to.r].splice(0, 1, '');
-}
-}
+
 epSquare = ((bd[bm.to.r][bm.to.c] === 'p' || bd[bm.to.r][bm.to.c] === 'P') && Math.abs(bm.to.r - botFromRow) === 2)
 ? { r: (botFromRow + bm.to.r) / 2, c: bm.to.c }
 : null;
