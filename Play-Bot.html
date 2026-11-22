@@ -989,7 +989,7 @@ return score;
            var prevBotScore = 0;
     var lastTrashLine = "";
 
-    function updateTrashTalk(botScore, botColor, eventType) {
+       function updateTrashTalk(botScore, botColor, eventType) {
         var box = document.getElementById('trashTalkBox');
         var mood = document.getElementById('botMood');
         var avatar = document.getElementById('botAvatar');
@@ -998,6 +998,7 @@ return score;
 
         var perspectiveScore = (botColor === 'B') ? botScore : -botScore;
         var swing = perspectiveScore - prevBotScore;
+        var wasCrushing = (prevBotScore >= 300);
         prevBotScore = perspectiveScore;
 
         if (evalBox) {
@@ -1042,6 +1043,16 @@ return score;
                 '"My silicon brain already wrapped this up. Watch."',
                 '"Count the moves—your king is already trapped."',
                 '"You can stall with checks, or you can hit Restart now."'
+            ],
+            promote: [
+                '"Fresh Queen on the board. Things are about to get ugly for you."',
+                '"Promotion complete. Good luck stopping two queens."',
+                '"That pawn just graduated—and now it’s hunting your king."'
+            ],
+            sacrifice: [
+                '"Take the bait if you dare. I already calculated the finish."',
+                '"Material means nothing when your king is wide open."',
+                '"Call an ambulance—but not for me."'
             ],
             blunder: [
                 '"Wait… you actually meant to play that?"',
@@ -1122,6 +1133,12 @@ return score;
         } else if (perspectiveScore > 90000) {
             avatar.innerText = '😈'; mood.innerText = 'Smelling Checkmate';
             box.innerText = pick(lines.forcedMate);
+        } else if (eventType === 'promote') {
+            avatar.innerText = '👸'; mood.innerText = 'Promoted';
+            box.innerText = pick(lines.promote);
+        } else if (eventType === 'sacrifice') {
+            avatar.innerText = '🧠'; mood.innerText = 'Calculated Sacrifice';
+            box.innerText = pick(lines.sacrifice);
         } else if (swing >= 180) {
             avatar.innerText = '😂'; mood.innerText = 'Laughing at Blunder';
             box.innerText = pick(lines.blunder);
@@ -1134,7 +1151,7 @@ return score;
         } else if (perspectiveScore >= 250) {
             avatar.innerText = '😎'; mood.innerText = 'Crushing';
             box.innerText = pick(lines.winning);
-        } else if (perspectiveScore <= -250) {
+        } else if (perspectiveScore <= -300 && !wasCrushing) {
             avatar.innerText = '😤'; mood.innerText = 'Sweating';
             box.innerText = pick(lines.losing);
         } else {
@@ -1142,6 +1159,7 @@ return score;
             box.innerText = pick(lines.normal);
         }
     }
+
 
 
 
@@ -1802,12 +1820,21 @@ saveState();
 turn = playerColor;
 endState(playerColor);
 var botDeliveredCheck = check(playerColor, bd, null);
-var botEvent = botDeliveredCheck ? 'check' : (botIsCapture ? 'capture' : 'move');
-updateTrashTalk(bestEvaluatedMoves[targetIndex].score, botColor, botEvent);
-var evalBox = document.getElementById('evalReadout');
-if (evalBox && evalBox.innerText.indexOf('(') === -1) {
-evalBox.innerText += ' (d' + completedDepth + ' | ' + Math.round(nodes / 1000) + 'k)';
+var rawBotScore = bestEvaluatedMoves[targetIndex].score;
+var botPersp = isBotBlack ? rawBotScore : -rawBotScore;
+var botEvent = 'move';
+if (isBotPromo) {
+    botEvent = 'promote';
+} else if (botDeliveredCheck) {
+    botEvent = 'check';
+} else if (botIsCapture) {
+    botEvent = 'capture';
+} else if (botPersp >= 250 && isSquareAttacked(bm.to.r, bm.to.c, playerColor, bd)) {
+    botEvent = 'sacrifice';
 }
+updateTrashTalk(rawBotScore, botColor, botEvent);
+
+
 draw();
 }
   
