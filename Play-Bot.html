@@ -89,10 +89,12 @@
             <button id="undoBtn" onclick="undo()" style="flex: 1; padding: 8px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #555555; color: white; border: none; border-radius: 4px;">Undo Move</button>
             <button onclick="rst()" style="flex: 1; padding: 8px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #007acc; color: white; border: none; border-radius: 4px;">Restart Game</button>
         </div>
-        <div style="display: flex; gap: 6px; margin-top: 6px;">
-            <button id="copyPgnBtn" onclick="copyExport('pgn')" style="flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #2b2b36; color: #7fffd4; border: 1px solid #3c4043; border-radius: 4px;">Copy PGN (Analysis)</button>
+               <div style="display: flex; gap: 6px; margin-top: 6px;">
+            <button id="copyPgnBtn" onclick="copyExport('pgn')" style="flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #2b2b36; color: #7fffd4; border: 1px solid #3c4043; border-radius: 4px;">Copy PGN</button>
             <button id="copyFenBtn" onclick="copyExport('fen')" style="flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #2b2b36; color: #7fffd4; border: 1px solid #3c4043; border-radius: 4px;">Copy FEN</button>
+            <button id="toggleRepBtn" onclick="toggleReport()" style="display: none; flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #007acc; color: #fff; border: none; border-radius: 4px;">📊 Report</button>
         </div>
+
     </div>
 </div>
 
@@ -115,7 +117,8 @@
     var isWhiteMap = {'P':1,'N':1,'B':1,'R':1,'Q':1,'K':1};
     var isBlackMap = {'p':1,'n':1,'b':1,'r':1,'q':1,'k':1};
         var boardHistory = [];
-    var evalHistory = [];
+    var evalHistory =;
+
 
     var moveHistory = [];
     var lastMove = null;
@@ -868,19 +871,20 @@ return score;
                     }
                 }
 
-                if (cIdx === 0) {
+                                if (cIdx === 0) {
                     var rankLbl = document.createElement('div');
                     rankLbl.innerText = 8 - r;
                     rankLbl.style.position = 'absolute';
                     rankLbl.style.top = '2px';
                     rankLbl.style.left = '3px';
-                    rankLbl.style.fontSize = '10px';
+                    rankLbl.style.fontSize = '12px';
                     rankLbl.style.lineHeight = '1';
-                    rankLbl.style.fontWeight = 'bold';
+                    rankLbl.style.fontWeight = '900';
                     rankLbl.style.background = 'transparent';
                     rankLbl.style.border = 'none';
                     rankLbl.style.padding = '0';
-                    rankLbl.style.color = isLight ? '#b58863' : '#f0d9b5';
+                    rankLbl.style.color = isLight ? '#5c3d24' : '#fff7e6';
+                    rankLbl.style.textShadow = isLight ? '0 1px 0 rgba(255,255,255,0.5)' : '0 1px 1px rgba(0,0,0,0.7)';
                     rankLbl.style.pointerEvents = 'none';
                     td.appendChild(rankLbl);
                 }
@@ -891,16 +895,18 @@ return score;
                     fileLbl.style.position = 'absolute';
                     fileLbl.style.bottom = '2px';
                     fileLbl.style.right = '3px';
-                    fileLbl.style.fontSize = '10px';
+                    fileLbl.style.fontSize = '12px';
                     fileLbl.style.lineHeight = '1';
-                    fileLbl.style.fontWeight = 'bold';
+                    fileLbl.style.fontWeight = '900';
                     fileLbl.style.background = 'transparent';
                     fileLbl.style.border = 'none';
                     fileLbl.style.padding = '0';
-                    fileLbl.style.color = isLight ? '#b58863' : '#f0d9b5';
+                    fileLbl.style.color = isLight ? '#5c3d24' : '#fff7e6';
+                    fileLbl.style.textShadow = isLight ? '0 1px 0 rgba(255,255,255,0.5)' : '0 1px 1px rgba(0,0,0,0.7)';
                     fileLbl.style.pointerEvents = 'none';
                     td.appendChild(fileLbl);
                 }
+
 
                 for (var i = 0; i < moves.length; i++) {
                     if (moves[i].r === r && moves[i].c === c) {
@@ -1190,9 +1196,10 @@ return score;
         var is3200 = (diffSetting === "3200");
         var isHard = (diffSetting === "1600" || is3200);
 
-        var maxDepth = is3200 ? 12 : (diffSetting === "1600" ? 5 : (diffSetting === "1200" ? 3 : 2));
-        var maxQDepth = is3200 ? 6 : (diffSetting === "1600" ? 4 : (diffSetting === "1200" ? 3 : 2));
-        var timeLimitMs = is3200 ? 1300 : (diffSetting === "1600" ? 220 : (diffSetting === "1200" ? 100 : 50));
+        var maxDepth = is3200 ? 12 : (diffSetting === "1600" ? 4 : (diffSetting === "1200" ? 3 : 2));
+var maxQDepth = is3200 ? 6 : (diffSetting === "1600" ? 3 : (diffSetting === "1200" ? 3 : 2));
+var timeLimitMs = is3200 ? 1300 : (diffSetting === "1600" ? 120 : (diffSetting === "1200" ? 100 : 50));
+
         var startTime = Date.now();
         var timeUp = false;
 
@@ -1782,15 +1789,18 @@ if (bestEvaluatedMoves.length === 0) {
 }
 var roll = Math.random() * 100;
 var targetIndex = 0;
-if (isHard) {
-targetIndex = 0;
+if (is3200) {
+    targetIndex = 0;
+} else if (diffSetting === "1600") {
+    if (roll > 88 && bestEvaluatedMoves.length > 1) targetIndex = 1;
 } else if (diffSetting === "1200") {
-if (roll > 92 && bestEvaluatedMoves.length > 1) targetIndex = 1;
+    if (roll > 85 && bestEvaluatedMoves.length > 1) targetIndex = 1;
 } else if (diffSetting === "800") {
-if (roll > 82 && bestEvaluatedMoves.length > 1) {
-targetIndex = Math.min(Math.floor(Math.random() * 2) + 1, bestEvaluatedMoves.length - 1);
+    if (roll > 75 && bestEvaluatedMoves.length > 1) {
+        targetIndex = Math.min(Math.floor(Math.random() * 2) + 1, bestEvaluatedMoves.length - 1);
+    }
 }
-}
+
 var chosenCode = bestEvaluatedMoves[targetIndex].code;
 var bm = {
 fr: (chosenCode >> 9) & 7,
@@ -1837,9 +1847,12 @@ epSquare = ((bd[bm.to.r][bm.to.c] === 'p' || bd[bm.to.r][bm.to.c] === 'P') && Ma
 ? { r: (botFromRow + bm.to.r) / 2, c: bm.to.c }
 : null;
 var playerColor = document.getElementById('pColor').value;
+
 finalizeSAN(botSanBase, playerColor);
-recordEval();
+recordEval(-rawBotScore);
 saveState();
+
+
 
 turn = playerColor;
 endState(playerColor);
@@ -1900,19 +1913,60 @@ turn = 'W';
 document.getElementById('msg').innerText = "Your Turn (White)";
 }
 }
-      function recordEval() {
-        var raw = -evalBoard(bd);
-        evalHistory.push(raw);
+          function quickTacticalEval(sideToMove) {
+        // Fast 2-ply + capture resolution so normal trades don't look like blunders
+        function qSearch(alpha, beta, isMax, qd) {
+            var standPat = evalBoard(bd);
+            if (qd <= 0) return standPat;
+            if (isMax) {
+                if (standPat >= beta) return beta;
+                if (standPat > alpha) alpha = standPat;
+            } else {
+                if (standPat <= alpha) return alpha;
+                if (standPat < beta) beta = standPat;
+            }
+            var cl = isMax ? 'B' : 'W';
+            for (var r = 0; r < 8; r++) {
+                for (var c = 0; c < 8; c++) {
+                    var p = bd[r][c];
+                    if (!p || getColor(p) !== cl) continue;
+                    var leg = getLegal(r, c, bd, true, null);
+                    for (var i = 0; i < leg.length; i++) {
+                        var m = leg[i];
+                        if (bd[m.r][m.c] === '' && !m.isENPassant) continue;
+                        var saved = bd[m.r][m.c];
+                        bd[m.r][m.c] = p; bd[r][c] = '';
+                        var sc = qSearch(alpha, beta, !isMax, qd - 1);
+                        bd[r][c] = p; bd[m.r][m.c] = saved;
+                        if (isMax) { if (sc >= beta) return beta; if (sc > alpha) alpha = sc; }
+                        else { if (sc <= alpha) return alpha; if (sc < beta) beta = sc; }
+                    }
+                }
+            }
+            return isMax ? alpha : beta;
+        }
+        return -qSearch(-999999, 999999, sideToMove === 'B', 3);
+    }
+
+    function recordEval(knownWhiteCp) {
+        if (typeof knownWhiteCp === 'number' && Math.abs(knownWhiteCp) < 90000) {
+            evalHistory.push(knownWhiteCp);
+        } else {
+            var nextSide = (moveHistory.length % 2 === 0) ? 'W' : 'B';
+            evalHistory.push(quickTacticalEval(nextSide));
+        }
     }
 
     function toggleReport() {
         var ov = document.getElementById('reportOverlay');
         if (!ov) return;
-        ov.style.display = (ov.style.display === 'none') ? 'flex' : 'none';
+        ov.style.display = (ov.style.display === 'none' || ov.style.display === '') ? 'flex' : 'none';
     }
 
     function showGameReport(titleText) {
         var ov = document.getElementById('reportOverlay');
+        var btn = document.getElementById('toggleRepBtn');
+        if (btn) btn.style.display = 'inline-block';
         if (!ov) return;
 
         var playerColor = document.getElementById('pColor').value;
@@ -1930,12 +1984,12 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             var after = (i + 1 < evalHistory.length) ? evalHistory.at(i + 1) : before;
 
             var cpLoss = whiteMoved ? Math.max(0, before - after) : Math.max(0, after - before);
-            if (Math.abs(before) > 9000 || Math.abs(after) > 9000) cpLoss = 0;
+            if (Math.abs(before) > 5000 || Math.abs(after) > 5000) cpLoss = 0;
 
             var bucket = isPlayerMove ? stats.p : stats.b;
             if (cpLoss <= 25) bucket.best++;
             else if (cpLoss <= 65) bucket.good++;
-            else if (cpLoss <= 130) bucket.inacc++;
+            else if (cpLoss <= 135) bucket.inacc++;
             else if (cpLoss <= 260) bucket.mistake++;
             else bucket.blunder++;
 
@@ -1955,29 +2009,39 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             return (sum / losses.length).toFixed(1);
         }
 
-        function estRating(acc, diffVal) {
-            var base = diffVal === '3200' ? 2350 : (diffVal === '1600' ? 1650 : (diffVal === '1200' ? 1250 : 850));
-            var adj = Math.round((parseFloat(acc) - 85) * 28);
-            return Math.max(400, Math.min(2850, base + adj));
+        function calcPerfRating(accStr, outcome, oppRating) {
+            var acc = parseFloat(accStr);
+            // Accuracy curve: 96% -> ~2350, 90% -> ~1950, 82% -> ~1550, 72% -> ~1150
+            var accPerf = 450 + Math.pow(acc / 100, 2.35) * 2050;
+            var resultAnchor = oppRating + (outcome === 1 ? 250 : (outcome === 0.5 ? 0 : -200));
+            return Math.max(400, Math.min(2850, Math.round(accPerf * 0.65 + resultAnchor * 0.35)));
         }
 
         var pAcc = calcAccuracy(pLoss);
         var bAcc = calcAccuracy(bLoss);
         var diffVal = document.getElementById('diff').value;
-        var pElo = estRating(pAcc, '3200');
-        var bElo = estRating(bAcc, diffVal);
+        var botNominalElo = diffVal === '3200' ? 2350 : (diffVal === '1600' ? 1650 : (diffVal === '1200' ? 1250 : 850));
+
+        var pOutcome = 0.5, bOutcome = 0.5;
+        if (gameResult === '1-0') { pOutcome = pIsWhite ? 1 : 0; bOutcome = pIsWhite ? 0 : 1; }
+        else if (gameResult === '0-1') { pOutcome = pIsWhite ? 0 : 1; bOutcome = pIsWhite ? 1 : 0; }
+
+        var pElo = calcPerfRating(pAcc, pOutcome, botNominalElo);
+        var bElo = calcPerfRating(bAcc, bOutcome, pElo);
 
         document.getElementById('repTitle').innerText = titleText;
         document.getElementById('repSummary').innerHTML =
-            '<div style="flex:1; background:#2b2b36; padding:8px; border-radius:6px; border-top:3px solid #7fffd4; text-align:center;">' +
-                '<div style="font-size:11px; color:#aaa;">YOU (' + (pIsWhite ? 'White' : 'Black') + ')</div>' +
-                '<div style="font-size:20px; font-weight:bold; color:#fff; margin:2px 0;">' + pAcc + '%</div>' +
-                '<div style="font-size:11px; color:#7fffd4;">Est. Rating: ' + pElo + '</div>' +
+            '<div style="flex:1; background:#2b2b36; padding:8px 6px; border-radius:6px; border-top:3px solid #7fffd4; text-align:center;">' +
+                '<div style="font-size:11px; color:#aaa; font-weight:bold;">YOU (' + (pIsWhite ? 'White' : 'Black') + ')</div>' +
+                '<div style="font-size:24px; font-weight:900; color:#7fffd4; line-height:1.15; margin:3px 0;">' + pElo + '</div>' +
+                '<div style="font-size:10px; color:#bbb; text-transform:uppercase; letter-spacing:0.5px;">Est. Rating</div>' +
+                '<div style="font-size:13px; font-weight:bold; color:#fff; margin-top:4px;">' + pAcc + '% Acc</div>' +
             '</div>' +
-            '<div style="flex:1; background:#2b2b36; padding:8px; border-radius:6px; border-top:3px solid #ff7f7f; text-align:center;">' +
-                '<div style="font-size:11px; color:#aaa;">CLUB BOT</div>' +
-                '<div style="font-size:20px; font-weight:bold; color:#fff; margin:2px 0;">' + bAcc + '%</div>' +
-                '<div style="font-size:11px; color:#ff7f7f;">Est. Rating: ' + bElo + '</div>' +
+            '<div style="flex:1; background:#2b2b36; padding:8px 6px; border-radius:6px; border-top:3px solid #ff7f7f; text-align:center;">' +
+                '<div style="font-size:11px; color:#aaa; font-weight:bold;">CLUB BOT</div>' +
+                '<div style="font-size:24px; font-weight:900; color:#ff7f7f; line-height:1.15; margin:3px 0;">' + bElo + '</div>' +
+                '<div style="font-size:10px; color:#bbb; text-transform:uppercase; letter-spacing:0.5px;">Est. Rating</div>' +
+                '<div style="font-size:13px; font-weight:bold; color:#fff; margin-top:4px;">' + bAcc + '% Acc</div>' +
             '</div>';
 
         document.getElementById('repCounts').innerHTML =
@@ -2106,17 +2170,23 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             if (hBoard[0][0] !== 'r') hasMoved['B_R1'] = true;
             if (hBoard[0][7] !== 'r') hasMoved['B_R8'] = true;
         }
-        sel = null; moves = []; turn = playerColor;
+      
+                sel = null; moves = []; turn = playerColor;
         if (document.getElementById('reportOverlay')) document.getElementById('reportOverlay').style.display = 'none';
+        if (document.getElementById('toggleRepBtn')) document.getElementById('toggleRepBtn').style.display = 'none';
         updateTrashTalk(-prevBotScore, playerColor === 'W' ? 'B' : 'W', 'undo');
         renderMoveList(); endState(playerColor); draw();
     }
+
 
     function rst() {
         bd = JSON.parse(JSON.stringify(start));
         sel = null; moves = []; turn = 'W';
         boardHistory = [];
-        evalHistory = [];
+       evalHistory =;
+if (document.getElementById('reportOverlay')) document.getElementById('reportOverlay').style.display = 'none';
+if (document.getElementById('toggleRepBtn')) document.getElementById('toggleRepBtn').style.display = 'none';
+
         moveHistory = [];
         lastMove = null;
         halfMoves = 0;
