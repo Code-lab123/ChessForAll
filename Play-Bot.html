@@ -697,8 +697,8 @@ return score;
         return isSquareAttacked(kr, kc, cl === 'W' ? 'B' : 'W', b);
     }
 
-          function getPseudo(r, c, b, checkCastlingSafe, inSim) {
-        var p = b[r][c];
+              function getPseudo(r, c, b, checkCastlingSafe, inSim) {
+        var p = b.at(r).at(c);
         var isW = !!isWhiteMap[p];
         var cl = isW ? 'W' : 'B';
         var enemyMap = isW ? isBlackMap : isWhiteMap;
@@ -708,16 +708,16 @@ return score;
             var d = isW ? -1 : 1, s = isW ? 6 : 1;
             var r1 = r + d;
             if (r1 >= 0 && r1 < 8) {
-                if (b[r1][c] === '') {
+                if (b.at(r1).at(c) === '') {
                     m.push({ r: r1, c: c });
-                    if (r === s && b[r + 2 * d][c] === '') m.push({ r: r + 2 * d, c: c, isDouble: true });
+                    if (r === s && b.at(r + 2 * d).at(c) === '') m.push({ r: r + 2 * d, c: c, isDouble: true });
                 }
                 if (c > 0) {
-                    if (enemyMap[b[r1][c - 1]]) m.push({ r: r1, c: c - 1 });
+                    if (enemyMap[b.at(r1).at(c - 1)]) m.push({ r: r1, c: c - 1 });
                     else if (!inSim && epSquare && epSquare.r === r1 && epSquare.c === c - 1) m.push({ r: r1, c: c - 1, isENPassant: true });
                 }
                 if (c < 7) {
-                    if (enemyMap[b[r1][c + 1]]) m.push({ r: r1, c: c + 1 });
+                    if (enemyMap[b.at(r1).at(c + 1)]) m.push({ r: r1, c: c + 1 });
                     else if (!inSim && epSquare && epSquare.r === r1 && epSquare.c === c + 1) m.push({ r: r1, c: c + 1, isENPassant: true });
                 }
             }
@@ -725,9 +725,9 @@ return score;
         }
         if (p === 'N' || p === 'n') {
             for (var i = 0; i < 8; i++) {
-                var nr = r + N_DR[i], nc = c + N_DC[i];
+                var nr = r + N_DR.at(i), nc = c + N_DC.at(i);
                 if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-                    var target = b[nr][nc];
+                    var target = b.at(nr).at(nc);
                     if (target === '' || enemyMap[target]) m.push({ r: nr, c: nc });
                 }
             }
@@ -735,10 +735,10 @@ return score;
         }
         if (p === 'B' || p === 'b' || p === 'Q' || p === 'q') {
             for (var i = 0; i < 4; i++) {
-                var dr = B_DR[i], dc = B_DC[i];
+                var dr = B_DR.at(i), dc = B_DC.at(i);
                 var nr = r + dr, nc = c + dc;
                 while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-                    var target = b[nr][nc];
+                    var target = b.at(nr).at(nc);
                     if (target === '') {
                         m.push({ r: nr, c: nc });
                     } else {
@@ -751,10 +751,10 @@ return score;
         }
         if (p === 'R' || p === 'r' || p === 'Q' || p === 'q') {
             for (var i = 0; i < 4; i++) {
-                var dr = R_DR[i], dc = R_DC[i];
+                var dr = R_DR.at(i), dc = R_DC.at(i);
                 var nr = r + dr, nc = c + dc;
                 while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-                    var target = b[nr][nc];
+                    var target = b.at(nr).at(nc);
                     if (target === '') {
                         m.push({ r: nr, c: nc });
                     } else {
@@ -767,30 +767,29 @@ return score;
         }
         if (p === 'K' || p === 'k') {
             for (var i = 0; i < 8; i++) {
-                var nr = r + K_DR[i], nc = c + K_DC[i];
+                var nr = r + K_DR.at(i), nc = c + K_DC.at(i);
                 if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-                    var target = b[nr][nc];
+                    var target = b.at(nr).at(nc);
                     if (target === '' || enemyMap[target]) m.push({ r: nr, c: nc });
                 }
             }
             if (!inSim && checkCastlingSafe) {
-    var row = isW ? 7 : 0;
-    var opp = isW ? 'B' : 'W';
-    if (r === row && c === 4 && !hasMoved[cl + '_K'] && !isSquareAttacked(row, 4, opp, b)) {
-        if (!hasMoved[cl + '_R8'] && rRow[7] === (isW ? 'R' : 'r') &&
-    rRow[5] === '' && rRow[6] === '' &&
-    !isSquareAttacked(backRank, 5, opp, b) && !isSquareAttacked(backRank, 6, opp, b)) {
-    pushMove(backRank, 4, backRank, 6, false, true);
-}
-if (!hasMoved[cl + '_R1'] && rRow[0] === (isW ? 'R' : 'r') &&
-    rRow[3] === '' && rRow[2] === '' && rRow[1] === '' &&
-    !isSquareAttacked(backRank, 3, opp, b) && !isSquareAttacked(backRank, 2, opp, b)) {
-    pushMove(backRank, 4, backRank, 2, false, true);
-}
-
-    }
-}
-
+                var row = isW ? 7 : 0;
+                var opp = isW ? 'B' : 'W';
+                var kRow = b.at(row);
+                if (r === row && c === 4 && !hasMoved[cl + '_K'] && !isSquareAttacked(row, 4, opp, b)) {
+                    if (!hasMoved[cl + '_R8'] && kRow.at(7) === (isW ? 'R' : 'r') &&
+                        kRow.at(5) === '' && kRow.at(6) === '' &&
+                        !isSquareAttacked(row, 5, opp, b) && !isSquareAttacked(row, 6, opp, b)) {
+                        m.push({ r: row, c: 6, isCastle: true });
+                    }
+                    if (!hasMoved[cl + '_R1'] && kRow.at(0) === (isW ? 'R' : 'r') &&
+                        kRow.at(3) === '' && kRow.at(2) === '' && kRow.at(1) === '' &&
+                        !isSquareAttacked(row, 3, opp, b) && !isSquareAttacked(row, 2, opp, b)) {
+                        m.push({ r: row, c: 2, isCastle: true });
+                    }
+                }
+            }
         }
         return m;
     }
@@ -1389,22 +1388,23 @@ if (!hasMoved[cl + '_R1'] && rRow[0] === (isW ? 'R' : 'r') &&
                                 if (sq === '' || enemyMap[sq]) pushMove(r, c, nr, nc, false, false);
                             }
                         }
-                        if (rootMode && !capturesOnly) {
+                                               if (rootMode && !capturesOnly) {
                             var opp = isW ? 'B' : 'W';
-                            var rRow = b[backRank];
+                            var rRow = b.at(backRank);
                             if (r === backRank && c === 4 && !hasMoved[cl + '_K'] && !isSquareAttacked(backRank, 4, opp, b)) {
-                                if (!hasMoved[cl + '_R8'] && rRow[7] === (isW ? 'R' : 'r') &&
-                                    rRow[5] === '' && rRow[6] === '' &&
-!isSquareAttacked(backRank, 5, opp, b) && !isSquareAttacked(backRank, 6, opp, b)) {
-pushMove(backRank, 4, backRank, 6, false, true);
-}
-if (!hasMoved[cl + '_R1'] && rRow[0] === (isW ? 'R' : 'r') &&
-rRow[3] === '' && rRow[2] === '' && rRow[1] === '' &&
-!isSquareAttacked(backRank, 3, opp, b) && !isSquareAttacked(backRank, 2, opp, b)) {
-pushMove(backRank, 4, backRank, 2, false, true);
-}
-}
-}
+                                if (!hasMoved[cl + '_R8'] && rRow.at(7) === (isW ? 'R' : 'r') &&
+                                    rRow.at(5) === '' && rRow.at(6) === '' &&
+                                    !isSquareAttacked(backRank, 5, opp, b) && !isSquareAttacked(backRank, 6, opp, b)) {
+                                    pushMove(backRank, 4, backRank, 6, false, true);
+                                }
+                                if (!hasMoved[cl + '_R1'] && rRow.at(0) === (isW ? 'R' : 'r') &&
+                                    rRow.at(3) === '' && rRow.at(2) === '' && rRow.at(1) === '' &&
+                                    !isSquareAttacked(backRank, 3, opp, b) && !isSquareAttacked(backRank, 2, opp, b)) {
+                                    pushMove(backRank, 4, backRank, 2, false, true);
+                                }
+                            }
+                        }
+
 }
 }
 }
@@ -1443,11 +1443,16 @@ if (isEP) {
 epCaptured = b[fr][tc];
 b[fr][tc] = '';
 }
-if (isCastle) {
-    var cRow = b[tr];
-    if (tc === 6) { cRow[5] = cRow[7]; cRow[7] = ''; }
-    else if (tc === 2) { cRow[3] = cRow[0]; cRow[0] = ''; }
-}
+ if (isCastle) {
+                var cRow = b.at(tr);
+                if (tc === 6) {
+                    cRow.splice(5, 1, cRow.at(7));
+                    cRow.splice(7, 1, '');
+                } else if (tc === 2) {
+                    cRow.splice(3, 1, cRow.at(0));
+                    cRow.splice(0, 1, '');
+                }
+            }
 return { origPiece: origPiece, captured: captured, epCaptured: epCaptured };
 }
 function unmakeSimCode(b, code, u) {
@@ -1461,10 +1466,15 @@ if (origPiece === 'K') { wKing.r = fr; wKing.c = fc; }
 else if (origPiece === 'k') { bKing.r = fr; bKing.c = fc; }
 if (isEP) b[fr][tc] = u.epCaptured;
 if (isCastle) {
-    var cRow = b[tr];
-    if (tc === 6) { cRow[7] = cRow[5]; cRow[5] = ''; }
-    else if (tc === 2) { cRow[0] = cRow[3]; cRow[3] = ''; }
-}
+                var cRow = b.at(tr);
+                if (tc === 6) {
+                    cRow.splice(7, 1, cRow.at(5));
+                    cRow.splice(5, 1, '');
+                } else if (tc === 2) {
+                    cRow.splice(0, 1, cRow.at(3));
+                    cRow.splice(3, 1, '');
+                }
+            }
 }
         function evalEnhanced(b) {
             var s = evalBoard(b);
@@ -1899,16 +1909,18 @@ lastMove = { fr: botFromRow, fc: botFromCol, tr: bm.to.r, tc: bm.to.c };
 halfMoves = (botMovingPiece === 'p' || botMovingPiece === 'P' || botIsCapture) ? 0 : halfMoves + 1;
 if (bd[bm.to.r][bm.to.c] === 'p' && bm.to.r === 7) bd[bm.to.r][bm.to.c] = 'q';
 if (bd[bm.to.r][bm.to.c] === 'P' && bm.to.r === 0) bd[bm.to.r][bm.to.c] = 'Q';
-if ((bd[bm.to.r][bm.to.c] === 'K' || bd[bm.to.r][bm.to.c] === 'k') && Math.abs(bm.to.c - botFromCol) === 2) {
-var realCastleRow = bd[bm.to.r];
-if (bm.to.c === 6) {
-realCastleRow[5] = realCastleRow[7];
-realCastleRow[7] = '';
-}
-if (bm.to.c === 2) {
-realCastleRow[3] = realCastleRow[0];
-realCastleRow[0] = '';
-}
+        if ((bd[bm.to.r][bm.to.c] === 'K' || bd[bm.to.r][bm.to.c] === 'k') && Math.abs(bm.to.c - botFromCol) === 2) {
+            var realCastleRow = bd.at(bm.to.r);
+            if (bm.to.c === 6) {
+                realCastleRow.splice(5, 1, realCastleRow.at(7));
+                realCastleRow.splice(7, 1, '');
+            }
+            if (bm.to.c === 2) {
+                realCastleRow.splice(3, 1, realCastleRow.at(0));
+                realCastleRow.splice(0, 1, '');
+            }
+        }
+
 }
 epSquare = ((bd[bm.to.r][bm.to.c] === 'p' || bd[bm.to.r][bm.to.c] === 'P') && Math.abs(bm.to.r - botFromRow) === 2)
 ? { r: (botFromRow + bm.to.r) / 2, c: bm.to.c }
