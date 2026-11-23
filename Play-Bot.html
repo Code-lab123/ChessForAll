@@ -1193,15 +1193,14 @@ return score;
 
 
 
-                     function bot() {
+                         function bot() {
         var diffSetting = document.getElementById('diff').value;
         var is3200 = (diffSetting === "3200");
         var isHard = (diffSetting === "1600" || is3200);
 
-        var maxDepth = is3200 ? 12 : (diffSetting === "1600" ? 4 : (diffSetting === "1200" ? 3 : 2));
-var maxQDepth = is3200 ? 6 : (diffSetting === "1600" ? 3 : (diffSetting === "1200" ? 3 : 2));
-var timeLimitMs = is3200 ? 1300 : (diffSetting === "1600" ? 120 : (diffSetting === "1200" ? 100 : 50));
-
+        var maxDepth = is3200 ? 12 : (diffSetting === "1600" ? 3 : (diffSetting === "1200" ? 2 : 2));
+        var maxQDepth = is3200 ? 6 : (diffSetting === "1600" ? 2 : (diffSetting === "1200" ? 2 : 1));
+        var timeLimitMs = is3200 ? 1300 : (diffSetting === "1600" ? 90 : (diffSetting === "1200" ? 60 : 40));
         var startTime = Date.now();
         var timeUp = false;
 
@@ -1209,7 +1208,7 @@ var timeLimitMs = is3200 ? 1300 : (diffSetting === "1600" ? 120 : (diffSetting =
         var isBotBlack = (botColor === 'B');
 
         var simBoard = [];
-        for (var r = 0; r < 8; r++) simBoard.push(bd[r].slice());
+        for (var r = 0; r < 8; r++) simBoard.push(bd.at(r).slice());
 
         var wKing = { r: 7, c: 4 }, bKing = { r: 0, c: 4 };
         for (var r = 0; r < 8; r++) {
@@ -1228,9 +1227,9 @@ var timeLimitMs = is3200 ? 1300 : (diffSetting === "1600" ? 120 : (diffSetting =
             var h1 = isMax ? 0x9e3779b9 : 0x517cc1b7;
             var h2 = isMax ? 0x85ebca6b : 0xc2b2ae35;
             for (var r = 0; r < 8; r++) {
-                var row = b[r];
+                var row = b.at(r);
                 for (var c = 0; c < 8; c++) {
-                    var p = row[c];
+                    var p = row.at(c);
                     if (p !== '') {
                         var code = pieceHashMap[p] + (r * 8 + c) * 13;
                         h1 = Math.imul(h1 ^ code, 0x27d4eb2d);
@@ -1243,7 +1242,7 @@ var timeLimitMs = is3200 ? 1300 : (diffSetting === "1600" ? 120 : (diffSetting =
 
         var gameRepHistory = Object.create(null);
         for (var h = 0; h < boardHistory.length; h++) {
-            var entry = JSON.parse(boardHistory[h]);
+            var entry = JSON.parse(boardHistory.at(h));
             var hBoard = Array.isArray(entry) ? entry : entry.bd;
             var hKey = computeHash(hBoard, h % 2 === 1);
             gameRepHistory[hKey] = (gameRepHistory[hKey] || 0) + 1;
@@ -1276,8 +1275,8 @@ var timeLimitMs = is3200 ? 1300 : (diffSetting === "1600" ? 120 : (diffSetting =
             var colorMap = isW ? isWhiteMap : isBlackMap;
             var enemyMap = isW ? isBlackMap : isWhiteMap;
             var backRank = isW ? 7 : 0;
-            var k1 = killers1[ply];
-            var k2 = killers2[ply];
+            var k1 = killers1.at(ply);
+            var k2 = killers2.at(ply);
 
             function pushMove(fr, fc, tr, tc, isEP, isCastle) {
                 var target = b[tr][tc];
@@ -1317,9 +1316,9 @@ var timeLimitMs = is3200 ? 1300 : (diffSetting === "1600" ? 120 : (diffSetting =
             }
 
             for (var r = 0; r < 8; r++) {
-                var row = b[r];
+                var row = b.at(r);
                 for (var c = 0; c < 8; c++) {
-                    var p = row[c];
+                    var p = row.at(c);
                     if (p === '' || !colorMap[p]) continue;
 
                     if (p === 'P' || p === 'p') {
@@ -1343,7 +1342,7 @@ var timeLimitMs = is3200 ? 1300 : (diffSetting === "1600" ? 120 : (diffSetting =
                         }
                     } else if (p === 'N' || p === 'n') {
                         for (var i = 0; i < 8; i++) {
-                            var nr = r + N_DR[i], nc = c + N_DC[i];
+                            var nr = r + N_DR.at(i), nc = c + N_DC.at(i);
                             if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
                                 var sq = b[nr][nc];
                                 if (sq === '' || enemyMap[sq]) pushMove(r, c, nr, nc, false, false);
@@ -1351,58 +1350,58 @@ var timeLimitMs = is3200 ? 1300 : (diffSetting === "1600" ? 120 : (diffSetting =
                         }
                     } else if (p === 'B' || p === 'b') {
                         for (var i = 0; i < 4; i++) {
-                            var nr = r + B_DR[i], nc = c + B_DC[i];
+                            var nr = r + B_DR.at(i), nc = c + B_DC.at(i);
                             while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
                                 var sq = b[nr][nc];
                                 if (sq === '') pushMove(r, c, nr, nc, false, false);
                                 else { if (enemyMap[sq]) pushMove(r, c, nr, nc, false, false); break; }
-                                nr += B_DR[i]; nc += B_DC[i];
+                                nr += B_DR.at(i); nc += B_DC.at(i);
                             }
                         }
                     } else if (p === 'R' || p === 'r') {
                         for (var i = 0; i < 4; i++) {
-                            var nr = r + R_DR[i], nc = c + R_DC[i];
+                            var nr = r + R_DR.at(i), nc = c + R_DC.at(i);
                             while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
                                 var sq = b[nr][nc];
                                 if (sq === '') pushMove(r, c, nr, nc, false, false);
                                 else { if (enemyMap[sq]) pushMove(r, c, nr, nc, false, false); break; }
-                                nr += R_DR[i]; nc += R_DC[i];
+                                nr += R_DR.at(i); nc += R_DC.at(i);
                             }
                         }
                     } else if (p === 'Q' || p === 'q') {
                         for (var i = 0; i < 8; i++) {
-                            var nr = r + K_DR[i], nc = c + K_DC[i];
+                            var nr = r + K_DR.at(i), nc = c + K_DC.at(i);
                             while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
                                 var sq = b[nr][nc];
                                 if (sq === '') pushMove(r, c, nr, nc, false, false);
                                 else { if (enemyMap[sq]) pushMove(r, c, nr, nc, false, false); break; }
-                                nr += K_DR[i]; nc += K_DC[i];
+                                nr += K_DR.at(i); nc += K_DC.at(i);
                             }
                         }
                     } else if (p === 'K' || p === 'k') {
                         for (var i = 0; i < 8; i++) {
-                            var nr = r + K_DR[i], nc = c + K_DC[i];
+                            var nr = r + K_DR.at(i), nc = c + K_DC.at(i);
                             if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
                                 var sq = b[nr][nc];
                                 if (sq === '' || enemyMap[sq]) pushMove(r, c, nr, nc, false, false);
                             }
                         }
                         if (rootMode && !capturesOnly) {
-    var opp = isW ? 'B' : 'W';
-    if (r === backRank && c === 4 && !hasMoved[cl + '_K'] && !isSquareAttacked(backRank, 4, opp, b)) {
-        if (!hasMoved[cl + '_R8'] && b[backRank][7] === (isW ? 'R' : 'r') &&
-            b[backRank][5] === '' && b[backRank][6] === '' &&
-            !isSquareAttacked(backRank, 5, opp, b) && !isSquareAttacked(backRank, 6, opp, b)) {
-            pushMove(backRank, 4, backRank, 6, false, true);
-        }
-        if (!hasMoved[cl + '_R1'] && b[backRank][0] === (isW ? 'R' : 'r') &&
-            b[backRank][3] === '' && b[backRank][2] === '' && b[backRank][1] === '' &&
-            !isSquareAttacked(backRank, 3, opp, b) && !isSquareAttacked(backRank, 2, opp, b)) {
-            pushMove(backRank, 4, backRank, 2, false, true);
-        }
-    }
+                            var opp = isW ? 'B' : 'W';
+                            var rRow = b.at(backRank);
+                            if (r === backRank && c === 4 && !hasMoved[cl + '_K'] && !isSquareAttacked(backRank, 4, opp, b)) {
+                                if (!hasMoved[cl + '_R8'] && rRow.at(7) === (isW ? 'R' : 'r') &&
+                                    rRow.at(5) === '' && rRow.at(6) === '' &&
+!isSquareAttacked(backRank, 5, opp, b) && !isSquareAttacked(backRank, 6, opp, b)) {
+pushMove(backRank, 4, backRank, 6, false, true);
 }
-
+if (!hasMoved[cl + '_R1'] && rRow.at(0) === (isW ? 'R' : 'r') &&
+rRow.at(3) === '' && rRow.at(2) === '' && rRow.at(1) === '' &&
+!isSquareAttacked(backRank, 3, opp, b) && !isSquareAttacked(backRank, 2, opp, b)) {
+pushMove(backRank, 4, backRank, 2, false, true);
+}
+}
+}
 }
 }
 }
@@ -1410,18 +1409,18 @@ return { moves: moves, scores: scores };
 }
 function pickNextMove(gen, idx) {
 var moves = gen.moves, scores = gen.scores, len = moves.length;
-var bestIdx = idx, bestScore = scores[idx];
+var bestIdx = idx, bestScore = scores.at(idx);
 for (var j = idx + 1; j < len; j++) {
-if (scores[j] > bestScore) {
-bestScore = scores[j];
+if (scores.at(j) > bestScore) {
+bestScore = scores.at(j);
 bestIdx = j;
 }
 }
 if (bestIdx !== idx) {
-var tmpM = moves[idx]; moves[idx] = moves[bestIdx]; moves[bestIdx] = tmpM;
-var tmpS = scores[idx]; scores[idx] = scores[bestIdx]; scores[bestIdx] = tmpS;
+var tmpM = moves.at(idx); moves[idx] = moves.at(bestIdx); moves[bestIdx] = tmpM;
+var tmpS = scores.at(idx); scores[idx] = scores.at(bestIdx); scores[bestIdx] = tmpS;
 }
-return moves[idx];
+return moves.at(idx);
 }
 function makeSimCode(b, code) {
 var fr = (code >> 9) & 7, fc = (code >> 6) & 7, tr = (code >> 3) & 7, tc = code & 7;
@@ -1442,13 +1441,13 @@ epCaptured = b[fr][tc];
 b[fr][tc] = '';
 }
 if (isCastle) {
-    if (tc === 6) {
-        b[tr][5] = b[tr][7]; b[tr][7] = '';
-    } else if (tc === 2) {
-        b[tr][3] = b[tr][0]; b[tr][0] = '';
-    }
+var cRow = b.at(tr);
+if (tc === 6) {
+cRow[5] = cRow.at(7); cRow[7] = '';
+} else if (tc === 2) {
+cRow[3] = cRow.at(0); cRow[0] = '';
 }
-  
+}
 return { origPiece: origPiece, captured: captured, epCaptured: epCaptured };
 }
 function unmakeSimCode(b, code, u) {
@@ -1462,11 +1461,12 @@ if (origPiece === 'K') { wKing.r = fr; wKing.c = fc; }
 else if (origPiece === 'k') { bKing.r = fr; bKing.c = fc; }
 if (isEP) b[fr][tc] = u.epCaptured;
 if (isCastle) {
-    if (tc === 6) {
-        b[tr][7] = b[tr][5]; b[tr][5] = '';
-    } else if (tc === 2) {
-        b[tr][0] = b[tr][3]; b[tr][3] = '';
-    }
+var cRow = b.at(tr);
+if (tc === 6) {
+cRow[7] = cRow.at(5); cRow[5] = '';
+} else if (tc === 2) {
+cRow[0] = cRow.at(3); cRow[3] = '';
+}
 }
 }
 function evalEnhanced(b) {
@@ -1526,7 +1526,7 @@ var gen = genMoves(activeColor, b, !inCheck, 31, 0, false);
 var legalCount = 0;
 for (var i = 0; i < gen.moves.length; i++) {
 var code = pickNextMove(gen, i);
-if (!inCheck && gen.scores[i] < 0) break;
+if (!inCheck && gen.scores.at(i) < 0) break;
 var uData = makeSimCode(b, code);
 if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
 unmakeSimCode(b, code, uData);
@@ -1558,7 +1558,7 @@ var key = computeHash(b, isMax);
 if (ply > 0 && allowNull) {
 if (gameRepHistory[key] >= 2) return 0;
 for (var sp = 0; sp < ply; sp++) {
-if (searchPathKeys[sp] === key) return 0;
+if (searchPathKeys.at(sp) === key) return 0;
 }
 }
 searchPathKeys[ply] = key;
@@ -1627,8 +1627,8 @@ bestMoveCode = code;
 }
 if (score > alpha) alpha = score;
 if (beta <= alpha) {
-if (isQuiet && ply < 32 && killers1[ply] !== code) {
-killers2[ply] = killers1[ply];
+if (isQuiet && ply < 32 && killers1.at(ply) !== code) {
+killers2[ply] = killers1.at(ply);
 killers1[ply] = code;
 }
 break;
@@ -1674,8 +1674,8 @@ bestMoveCode = code;
 }
 if (score < beta) beta = score;
 if (beta <= alpha) {
-if (isQuiet && ply < 32 && killers1[ply] !== code) {
-killers2[ply] = killers1[ply];
+if (isQuiet && ply < 32 && killers1.at(ply) !== code) {
+killers2[ply] = killers1.at(ply);
 killers1[ply] = code;
 }
 break;
@@ -1706,40 +1706,38 @@ if (!illegal) topCodes.push(code);
 if (topCodes.length === 0) return;
 var bookMoves = [];
 if (moveHistory.length === 0) {
-    bookMoves = [
-        encodeMove(6, 4, 4, 4, false, false),
-        encodeMove(6, 3, 4, 3, false, false),
-        encodeMove(6, 2, 4, 2, false, false),
-        encodeMove(7, 6, 5, 5, false, false)
-    ];
+bookMoves = [
+encodeMove(6, 4, 4, 4, false, false),
+encodeMove(6, 3, 4, 3, false, false),
+encodeMove(6, 2, 4, 2, false, false),
+encodeMove(7, 6, 5, 5, false, false)
+];
 } else if (moveHistory.length === 1) {
-
-    if (bd[4][4] === 'P') {
-        bookMoves = [
-            encodeMove(1, 2, 3, 2, false, false),
-            encodeMove(1, 4, 3, 4, false, false),
-            encodeMove(1, 4, 2, 4, false, false),
-            encodeMove(1, 2, 2, 2, false, false)
-        ];
-    } else {
-        bookMoves = [
-            encodeMove(0, 6, 2, 5, false, false),
-            encodeMove(1, 3, 3, 3, false, false)
-        ];
-    }
-} else if (moveHistory.length === 3 && bd[4][3] === 'P' && bd[4][5] === 'B') {
-    bookMoves = [
-        encodeMove(1, 3, 3, 3, false, false),
-        encodeMove(1, 2, 3, 2, false, false),
-        encodeMove(0, 6, 2, 5, false, false)
-    ];
+if (bd[4][4] === 'P') {
+bookMoves = [
+encodeMove(1, 2, 3, 2, false, false),
+encodeMove(1, 4, 3, 4, false, false),
+encodeMove(1, 4, 2, 4, false, false),
+encodeMove(1, 2, 2, 2, false, false)
+];
+} else {
+bookMoves = [
+encodeMove(0, 6, 2, 5, false, false),
+encodeMove(1, 3, 3, 3, false, false)
+];
 }
-
+} else if (moveHistory.length === 3 && bd[4][3] === 'P' && bd[4][5] === 'B') {
+bookMoves = [
+encodeMove(1, 3, 3, 3, false, false),
+encodeMove(1, 2, 3, 2, false, false),
+encodeMove(0, 6, 2, 5, false, false)
+];
+}
 var validBookCodes = [];
 for (var bIdx = 0; bIdx < bookMoves.length; bIdx++) {
-if (topCodes.indexOf(bookMoves[bIdx]) !== -1) validBookCodes.push(bookMoves[bIdx]);
+if (topCodes.indexOf(bookMoves.at(bIdx)) !== -1) validBookCodes.push(bookMoves.at(bIdx));
 }
-var chosenBookCode = validBookCodes.length > 0 ? validBookCodes[Math.floor(Math.random() * validBookCodes.length)] : 0;
+var chosenBookCode = validBookCodes.length > 0 ? validBookCodes.at(Math.floor(Math.random() * validBookCodes.length)) : 0;
 var bestEvaluatedMoves = [];
 var completedDepth = 0;
 searchPathKeys[0] = computeHash(simBoard, isBotBlack);
@@ -1748,7 +1746,7 @@ var currentDepthMoves = [];
 var rootAlpha = -Infinity;
 var rootBeta = Infinity;
 for (var i = 0; i < topCodes.length; i++) {
-var code = topCodes[i];
+var code = topCodes.at(i);
 var uData = makeSimCode(simBoard, code);
 var baseValue;
 if (i === 0 || !is3200) {
@@ -1769,7 +1767,7 @@ baseValue = minimax(simBoard, d - 1, -Infinity, rootBeta, true, 1, true);
 unmakeSimCode(simBoard, code, uData);
 if (timeUp) break;
 var bookBonus = (chosenBookCode !== 0 && code === chosenBookCode) ? (isBotBlack ? 40 : -40) : 0;
-var jitterRange = is3200 ? 0 : (moveHistory.length < 6 ? 6 : 0);
+var jitterRange = is3200 ? 0 : (diffSetting === "1600" ? 28 : (diffSetting === "1200" ? 55 : 95));
 var varietyJitter = jitterRange > 0 ? (Math.random() * jitterRange - jitterRange / 2) : 0;
 var totalScore = baseValue + bookBonus + varietyJitter;
 currentDepthMoves.push({ code: code, score: totalScore });
@@ -1787,24 +1785,26 @@ bestEvaluatedMoves = currentDepthMoves;
 topCodes = bestEvaluatedMoves.map(function(item) { return item.code; });
 }
 if (bestEvaluatedMoves.length === 0) {
-    bestEvaluatedMoves = [{ code: topCodes[0], score: evalEnhanced(simBoard) }];
+bestEvaluatedMoves = [{ code: topCodes.at(0), score: evalEnhanced(simBoard) }];
 }
-        var roll = Math.random() * 100;
-        var targetIndex = 0;
-        if (is3200) {
-            targetIndex = 0;
-        } else if (diffSetting === "1600") {
-            if (roll > 88 && bestEvaluatedMoves.length > 1) targetIndex = 1;
-        } else if (diffSetting === "1200") {
-            if (roll > 85 && bestEvaluatedMoves.length > 1) targetIndex = 1;
-        } else if (diffSetting === "800") {
-            if (roll > 75 && bestEvaluatedMoves.length > 1) {
-                targetIndex = Math.min(Math.floor(Math.random() * 2) + 1, bestEvaluatedMoves.length - 1);
-            }
-        }
-
-        var chosenCode = bestEvaluatedMoves[targetIndex].code;
-
+var roll = Math.random() * 100;
+var targetIndex = 0;
+if (is3200) {
+targetIndex = 0;
+} else if (diffSetting === "1600") {
+if (roll > 78 && bestEvaluatedMoves.length > 1) targetIndex = 1;
+} else if (diffSetting === "1200") {
+if (roll > 70 && bestEvaluatedMoves.length > 1) {
+targetIndex = Math.min(Math.floor(Math.random() * 2) + 1, bestEvaluatedMoves.length - 1);
+}
+} else if (diffSetting === "800") {
+if (roll > 55 && bestEvaluatedMoves.length > 1) {
+targetIndex = Math.min(Math.floor(Math.random() * 3) + 1, bestEvaluatedMoves.length - 1);
+}
+}
+var chosenEntry = bestEvaluatedMoves.at(targetIndex);
+var chosenCode = chosenEntry.code;
+var rawBotScore = chosenEntry.score;
 var bm = {
 fr: (chosenCode >> 9) & 7,
 fc: (chosenCode >> 6) & 7,
@@ -1836,44 +1836,42 @@ halfMoves = (botMovingPiece === 'p' || botMovingPiece === 'P' || botIsCapture) ?
 if (bd[bm.to.r][bm.to.c] === 'p' && bm.to.r === 7) bd[bm.to.r][bm.to.c] = 'q';
 if (bd[bm.to.r][bm.to.c] === 'P' && bm.to.r === 0) bd[bm.to.r][bm.to.c] = 'Q';
 if ((bd[bm.to.r][bm.to.c] === 'K' || bd[bm.to.r][bm.to.c] === 'k') && Math.abs(bm.to.c - botFromCol) === 2) {
-    if (bm.to.c === 6) {
-        bd[bm.to.r][5] = bd[bm.to.r][7];
-        bd[bm.to.r][7] = '';
-    }
-    if (bm.to.c === 2) {
-        bd[bm.to.r][3] = bd[bm.to.r][0];
-        bd[bm.to.r][0] = '';
-    }
+var realCastleRow = bd.at(bm.to.r);
+if (bm.to.c === 6) {
+realCastleRow[5] = realCastleRow.at(7);
+realCastleRow[7] = '';
 }
-
+if (bm.to.c === 2) {
+realCastleRow[3] = realCastleRow.at(0);
+realCastleRow[0] = '';
+}
+}
 epSquare = ((bd[bm.to.r][bm.to.c] === 'p' || bd[bm.to.r][bm.to.c] === 'P') && Math.abs(bm.to.r - botFromRow) === 2)
 ? { r: (botFromRow + bm.to.r) / 2, c: bm.to.c }
 : null;
 var playerColor = document.getElementById('pColor').value;
-var rawBotScore = bestEvaluatedMoves[targetIndex].score;
-
 finalizeSAN(botSanBase, playerColor);
 recordEval(-rawBotScore);
 saveState();
-
 turn = playerColor;
 endState(playerColor);
 var botDeliveredCheck = check(playerColor, bd, null);
 var botPersp = isBotBlack ? rawBotScore : -rawBotScore;
 var botEvent = 'move';
-
 if (isBotPromo) {
-    botEvent = 'promote';
+botEvent = 'promote';
 } else if (botDeliveredCheck) {
-    botEvent = 'check';
+botEvent = 'check';
 } else if (botIsCapture) {
-    botEvent = 'capture';
+botEvent = 'capture';
 } else if (botPersp >= 250 && isSquareAttacked(bm.to.r, bm.to.c, playerColor, bd)) {
-    botEvent = 'sacrifice';
+botEvent = 'sacrifice';
 }
 updateTrashTalk(rawBotScore, botColor, botEvent);
-
-
+var evalBox = document.getElementById('evalReadout');
+if (evalBox && evalBox.innerText.indexOf('(') === -1) {
+evalBox.innerText += ' (d' + completedDepth + ' | ' + Math.round(nodes / 1000) + 'k)';
+}
 draw();
 }
   
