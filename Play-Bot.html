@@ -1851,7 +1851,8 @@ epSquare = ((bd[bm.to.r][bm.to.c] === 'p' || bd[bm.to.r][bm.to.c] === 'P') && Ma
 : null;
 var playerColor = document.getElementById('pColor').value;
 finalizeSAN(botSanBase, playerColor);
-recordEval(-rawBotScore);
+recordEval();
+
 saveState();
 turn = playerColor;
 endState(playerColor);
@@ -1913,8 +1914,8 @@ turn = 'W';
 document.getElementById('msg').innerText = "Your Turn (White)";
 }
 }
-          function quickTacticalEval(sideToMove) {
-        // Fast 2-ply + capture resolution so normal trades don't look like blunders
+              function quickTacticalEval(sideToMove) {
+        // Consistent 1-ply + quiescence evaluator (used equally for Player & Bot)
         function qSearch(alpha, beta, isMax, qd) {
             var standPat = evalBoard(bd);
             if (qd <= 0) return standPat;
@@ -1935,9 +1936,18 @@ document.getElementById('msg').innerText = "Your Turn (White)";
                         var m = leg[i];
                         if (bd[m.r][m.c] === '' && !m.isENPassant) continue;
                         var saved = bd[m.r][m.c];
-                        bd[m.r][m.c] = p; bd[r][c] = '';
+                        var savedEp = '';
+                        if (m.isENPassant) {
+                            savedEp = bd[r][m.c];
+                            bd[r][m.c] = '';
+                        }
+                        bd[m.r][m.c] = p;
+                        bd[r][c] = '';
                         var sc = qSearch(alpha, beta, !isMax, qd - 1);
-                        bd[r][c] = p; bd[m.r][m.c] = saved;
+                        bd[r][c] = p;
+                        bd[m.r][m.c] = saved;
+                        if (m.isENPassant) bd[r][m.c] = savedEp;
+
                         if (isMax) { if (sc >= beta) return beta; if (sc > alpha) alpha = sc; }
                         else { if (sc <= alpha) return alpha; if (sc < beta) beta = sc; }
                     }
@@ -1945,22 +1955,54 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             }
             return isMax ? alpha : beta;
         }
-        return -qSearch(-999999, 999999, sideToMove === 'B', 3);
-    }
 
-    function recordEval(knownWhiteCp) {
-        if (typeof knownWhiteCp === 'number' && Math.abs(knownWhiteCp) < 90000) {
-            evalHistory.push(knownWhiteCp);
-        } else {
-            var nextSide = (moveHistory.length % 2 === 0) ? 'W' : 'B';
-            evalHistory.push(quickTacticalEval(nextSide));
+        function mini1Ply(alpha, beta, isMax) {
+            var cl = isMax ? 'B' : 'W';
+            var best = isMax ? -999999 : 999999;
+            var hasMove = false;
+            for (var r = 0; r < 8; r++) {
+                for (var c = 0; c < 8; c++) {
+                    var p = bd[r][c];
+                    if (!p || getColor(p) !== cl) continue;
+                    var leg = getLegal(r, c, bd, true, null);
+                    for (var i = 0; i < leg.length; i++) {
+                        hasMove = true;
+                        var m = leg[i];
+                        var saved = bd[m.r][m.c];
+                        var savedEp = '';
+                        if (m.isENPassant) {
+                            savedEp = bd[r][m.c];
+                            bd[r][m.c] = '';
+                        }
+                        bd[m.r][m.c] = p;
+                        bd[r][c] = '';
+                        var sc = qSearch(alpha, beta, !isMax, 3);
+                        bd[r][c] = p;
+                        bd[m.r][m.c] = saved;
+                        if (m.isENPassant) bd[r][m.c] = savedEp;
+
+                        if (isMax) {
+                            if (sc > best) best = sc;
+                            if (sc > alpha) alpha = sc;
+                        } else {
+                            if (sc < best) best = sc;
+                            if (sc < beta) beta = sc;
+                        }
+                        if (beta <= alpha) return best;
+                    }
+                }
+            }
+            if (!hasMove) return check(cl, bd, null) ? (isMax ? -99999 : 99999) : 0;
+            return best;
         }
+
+        // Return score in White centipawns (+ = White better, - = Black better)
+        return -mini1Ply(-999999, 999999, sideToMove === 'B');
     }
 
-    function toggleReport() {
-        var ov = document.getElementById('reportOverlay');
-        if (!ov) return;
-        ov.style.display = (ov.style.display === 'none' || ov.style.display === '') ? 'flex' : 'none';
+    function recordEval() {
+        var nextSide = (moveHistory.length % 2 === 0) ? 'W' : 'B';
+        evalHistory.push(quickTacticalEval(nextSide));
     }
 
     function showGameReport(titleText) {
@@ -1977,24 +2019,32 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             b: { best: 0, good: 0, inacc: 0, mistake: 0, blunder: 0 }
         };
 
-
         for (var i = 0; i < moveHistory.length; i++) {
             var whiteMoved = (i % 2 === 0);
             var isPlayerMove = (whiteMoved === pIsWhite);
             var before = (i < evalHistory.length) ? evalHistory.at(i) : 0;
             var after = (i + 1 < evalHistory.length) ? evalHistory.at(i + 1) : before;
 
-            var cpLoss = whiteMoved ? Math.max(0, before - after) : Math.max(0, after - before);
-            if (Math.abs(before) > 5000 || Math.abs(after) > 5000) cpLoss = 0;
+            // Skip garbage-time moves when one side already has a forced mate or > +9.0
+            if (Math.abs(before) > 900 && Math.abs(after) > 900 && ((before > 0) === (after > 0))) {
+                var skipBucket = isPlayerMove ? stats.p : stats.b;
+                skipBucket.best++;
+                continue;
+            }
 
-if (whiteMoved && before >= 600 && after >= 550) cpLoss = 0;
-if (!whiteMoved && before <= -600 && after <= -550) cpLoss = 0;
+            // Clamp extreme eval swings so a single mate-in-1 swing doesn't zero out whole game
+            var clampedBefore = Math.max(-1000, Math.min(1000, before));
+            var clampedAfter = Math.max(-1000, Math.min(1000, after));
+
+            var cpLoss = whiteMoved
+                ? Math.max(0, clampedBefore - clampedAfter)
+                : Math.max(0, clampedAfter - clampedBefore);
 
             var bucket = isPlayerMove ? stats.p : stats.b;
-            if (cpLoss <= 25) bucket.best++;
-            else if (cpLoss <= 65) bucket.good++;
-            else if (cpLoss <= 135) bucket.inacc++;
-            else if (cpLoss <= 260) bucket.mistake++;
+            if (cpLoss <= 20) bucket.best++;
+            else if (cpLoss <= 55) bucket.good++;
+            else if (cpLoss <= 115) bucket.inacc++;
+            else if (cpLoss <= 230) bucket.mistake++;
             else bucket.blunder++;
 
             if (isPlayerMove) pLoss.push(cpLoss);
@@ -2013,25 +2063,27 @@ if (!whiteMoved && before <= -600 && after <= -550) cpLoss = 0;
             return (sum / losses.length).toFixed(1);
         }
 
-        function calcPerfRating(accStr, outcome, oppRating) {
+        function calcPerfRating(accStr, outcome, baseRating, blunderCount, moveCount) {
             var acc = parseFloat(accStr);
-            // Accuracy curve: 96% -> ~2350, 90% -> ~1950, 82% -> ~1550, 72% -> ~1150
-            var accPerf = 450 + Math.pow(acc / 100, 2.35) * 2050;
-            var resultAnchor = oppRating + (outcome === 1 ? 250 : (outcome === 0.5 ? 0 : -200));
-            return Math.max(400, Math.min(2850, Math.round(accPerf * 0.65 + resultAnchor * 0.35)));
+            // Maps ~60% acc -> ~700, ~75% -> ~1100, ~85% -> ~1500, ~95% -> ~2150
+            var accPerf = 350 + Math.pow(acc / 100, 2.8) * 2050;
+            var blunderPenalty = moveCount > 0 ? (blunderCount / moveCount) * 650 : 0;
+            var resultShift = (outcome === 1 ? 150 : (outcome === 0.5 ? 0 : -150));
+            var rawRating = (accPerf * 0.65) + ((baseRating + resultShift) * 0.35) - blunderPenalty;
+            return Math.max(400, Math.min(2850, Math.round(rawRating / 10) * 10));
         }
 
         var pAcc = calcAccuracy(pLoss);
         var bAcc = calcAccuracy(bLoss);
         var diffVal = document.getElementById('diff').value;
-        var botNominalElo = diffVal === '3200' ? 2350 : (diffVal === '1600' ? 1650 : (diffVal === '1200' ? 1250 : 850));
+        var botNominalElo = diffVal === '3200' ? 2350 : (diffVal === '1600' ? 1600 : (diffVal === '1200' ? 1200 : 800));
 
         var pOutcome = 0.5, bOutcome = 0.5;
         if (gameResult === '1-0') { pOutcome = pIsWhite ? 1 : 0; bOutcome = pIsWhite ? 0 : 1; }
         else if (gameResult === '0-1') { pOutcome = pIsWhite ? 0 : 1; bOutcome = pIsWhite ? 1 : 0; }
 
-        var pElo = calcPerfRating(pAcc, pOutcome, botNominalElo);
-        var bElo = calcPerfRating(bAcc, bOutcome, pElo);
+        var pElo = calcPerfRating(pAcc, pOutcome, botNominalElo, stats.p.blunder, pLoss.length);
+        var bElo = calcPerfRating(bAcc, bOutcome, botNominalElo, stats.b.blunder, bLoss.length);
 
         document.getElementById('repTitle').innerText = titleText;
         document.getElementById('repSummary').innerHTML =
@@ -2054,14 +2106,13 @@ if (!whiteMoved && before <= -600 && after <= -550) cpLoss = 0;
             '</div>' +
             '<div style="display:flex; justify-content:space-between; color:#7fffd4;"><span>★ Best / Great</span><span>' + stats.p.best + ' &nbsp;|&nbsp; ' + stats.b.best + '</span></div>' +
             '<div style="display:flex; justify-content:space-between; color:#a8e6cf;"><span>✓ Good</span><span>' + stats.p.good + ' &nbsp;|&nbsp; ' + stats.b.good + '</span></div>' +
-            '<div style="display:flex; justify-content:space-between; color:#ffd54f;"><span>?! Inaccuracies</span><span>' + stats.p.inacc + ' &nbsp;|&nbsp; ' + stats.b.inacc + '</span></div>' +
-            '<div style="display:flex; justify-content:space-between; color:#ff8a65;"><span>? Mistakes</span><span>' + stats.p.mistake + ' &nbsp;|&nbsp; ' + stats.b.mistake + '</span></div>' +
-            '<div style="display:flex; justify-content:space-between; color:#ff5252;"><span>?? Blunders</span><span>' + stats.p.blunder + ' &nbsp;|&nbsp; ' + stats.b.blunder + '</span></div>';
-
-        document.getElementById('repBadge').innerText = moveHistory.length + ' plies';
-        ov.style.display = 'flex';
-    }
-
+'?! Inaccuracies' + stats.p.inacc + '  |  ' + stats.b.inacc + '' +
+'? Mistakes' + stats.p.mistake + '  |  ' + stats.b.mistake + '' +
+'?? Blunders' + stats.p.blunder + '  |  ' + stats.b.blunder + '';
+document.getElementById('repBadge').innerText = moveHistory.length + ' plies';
+ov.style.display = 'flex';
+}
+  
        function endState(cl) {
         var currentStr = JSON.stringify(bd);
         var repeatCount = 0;
@@ -2178,6 +2229,7 @@ if (!whiteMoved && before <= -600 && after <= -550) cpLoss = 0;
                 sel = null; moves = []; turn = playerColor;
         if (document.getElementById('reportOverlay')) document.getElementById('reportOverlay').style.display = 'none';
         if (document.getElementById('toggleRepBtn')) document.getElementById('toggleRepBtn').style.display = 'none';
+      prevBotScore = 0;
         updateTrashTalk(-prevBotScore, playerColor === 'W' ? 'B' : 'W', 'undo');
         renderMoveList(); endState(playerColor); draw();
     }
