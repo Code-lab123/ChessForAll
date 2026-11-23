@@ -1914,8 +1914,7 @@ turn = 'W';
 document.getElementById('msg').innerText = "Your Turn (White)";
 }
 }
-              function quickTacticalEval(sideToMove) {
-        // Consistent 1-ply + quiescence evaluator (used equally for Player & Bot)
+                  function quickTacticalEval(sideToMove) {
         function qSearch(alpha, beta, isMax, qd) {
             var standPat = evalBoard(bd);
             if (qd <= 0) return standPat;
@@ -1996,7 +1995,6 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             return best;
         }
 
-        // Return score in White centipawns (+ = White better, - = Black better)
         return -mini1Ply(-999999, 999999, sideToMove === 'B');
     }
 
@@ -2004,7 +2002,8 @@ document.getElementById('msg').innerText = "Your Turn (White)";
         var nextSide = (moveHistory.length % 2 === 0) ? 'W' : 'B';
         evalHistory.push(quickTacticalEval(nextSide));
     }
-        function toggleReport() {
+
+    function toggleReport() {
         var ov = document.getElementById('reportOverlay');
         if (!ov) return;
         ov.style.display = (ov.style.display === 'none' || ov.style.display === '') ? 'flex' : 'none';
@@ -2089,7 +2088,6 @@ document.getElementById('msg').innerText = "Your Turn (White)";
 
         document.getElementById('repTitle').innerText = titleText;
 
-        // Build Summary Cards safely via DOM (no HTML strings)
         var sumBox = document.getElementById('repSummary');
         sumBox.innerHTML = '';
         function makeCard(label, elo, acc, accent) {
@@ -2113,7 +2111,6 @@ document.getElementById('msg').innerText = "Your Turn (White)";
         sumBox.appendChild(makeCard('YOU (' + (pIsWhite ? 'White' : 'Black') + ')', pElo, pAcc, '#7fffd4'));
         sumBox.appendChild(makeCard('CLUB BOT', bElo, bAcc, '#ff7f7f'));
 
-        // Build Move Quality Rows safely via DOM
         var cntBox = document.getElementById('repCounts');
         cntBox.innerHTML = '';
         var rows = [
@@ -2128,79 +2125,15 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             var rData = rows[rIdx];
             var rowEl = document.createElement('div');
             rowEl.style.cssText = 'display:flex; justify-content:space-between; color:' + rData[2] + ';' +
-                (rData[3] ? ' border-bottom:1px solid #3c4043; padding-bottom:3px; margin-bottom:4px; font-weight:bold;' : '');
-            var leftSpan = document.createElement('span');
-            leftSpan.innerText = rData[0];
-            var rightSpan = document.createElement('span');
-            rightSpan.innerText = rData[1];
-            rowEl.appendChild(leftSpan);
-            rowEl.appendChild(rightSpan);
-            cntBox.appendChild(rowEl);
-        }
-
-        document.getElementById('repBadge').innerText = moveHistory.length + ' plies';
-        ov.style.display = 'flex';
-    }
-
-
-        function calcAccuracy(losses) {
-            if (losses.length === 0) return '100.0';
-            var sum = 0;
-            for (var j = 0; j < losses.length; j++) {
-                var lossVal = losses.at(j);
-                var winPctDrop = 100 * (2 / (1 + Math.exp(-0.00368 * lossVal)) - 1);
-                var moveAcc = Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * winPctDrop) - 3.1669));
-                sum += moveAcc;
-            }
-            return (sum / losses.length).toFixed(1);
-        }
-
-        function calcPerfRating(accStr, outcome, baseRating, blunderCount, moveCount) {
-            var acc = parseFloat(accStr);
-            // Maps ~60% acc -> ~700, ~75% -> ~1100, ~85% -> ~1500, ~95% -> ~2150
-            var accPerf = 350 + Math.pow(acc / 100, 2.8) * 2050;
-            var blunderPenalty = moveCount > 0 ? (blunderCount / moveCount) * 650 : 0;
-            var resultShift = (outcome === 1 ? 150 : (outcome === 0.5 ? 0 : -150));
-            var rawRating = (accPerf * 0.65) + ((baseRating + resultShift) * 0.35) - blunderPenalty;
-            return Math.max(400, Math.min(2850, Math.round(rawRating / 10) * 10));
-        }
-
-        var pAcc = calcAccuracy(pLoss);
-        var bAcc = calcAccuracy(bLoss);
-        var diffVal = document.getElementById('diff').value;
-        var botNominalElo = diffVal === '3200' ? 2350 : (diffVal === '1600' ? 1600 : (diffVal === '1200' ? 1200 : 800));
-
-        var pOutcome = 0.5, bOutcome = 0.5;
-        if (gameResult === '1-0') { pOutcome = pIsWhite ? 1 : 0; bOutcome = pIsWhite ? 0 : 1; }
-        else if (gameResult === '0-1') { pOutcome = pIsWhite ? 0 : 1; bOutcome = pIsWhite ? 1 : 0; }
-
-        var pElo = calcPerfRating(pAcc, pOutcome, botNominalElo, stats.p.blunder, pLoss.length);
-        var bElo = calcPerfRating(bAcc, bOutcome, botNominalElo, stats.b.blunder, bLoss.length);
-
-        document.getElementById('repTitle').innerText = titleText;
-        document.getElementById('repSummary').innerHTML =
-            '<div style="flex:1; background:#2b2b36; padding:8px 6px; border-radius:6px; border-top:3px solid #7fffd4; text-align:center;">' +
-                '<div style="font-size:11px; color:#aaa; font-weight:bold;">YOU (' + (pIsWhite ? 'White' : 'Black') + ')</div>' +
-                '<div style="font-size:24px; font-weight:900; color:#7fffd4; line-height:1.15; margin:3px 0;">' + pElo + '</div>' +
-                '<div style="font-size:10px; color:#bbb; text-transform:uppercase; letter-spacing:0.5px;">Est. Rating</div>' +
-                '<div style="font-size:13px; font-weight:bold; color:#fff; margin-top:4px;">' + pAcc + '% Acc</div>' +
-            '</div>' +
-            '<div style="flex:1; background:#2b2b36; padding:8px 6px; border-radius:6px; border-top:3px solid #ff7f7f; text-align:center;">' +
-                '<div style="font-size:11px; color:#aaa; font-weight:bold;">CLUB BOT</div>' +
-                '<div style="font-size:24px; font-weight:900; color:#ff7f7f; line-height:1.15; margin:3px 0;">' + bElo + '</div>' +
-                '<div style="font-size:10px; color:#bbb; text-transform:uppercase; letter-spacing:0.5px;">Est. Rating</div>' +
-                '<div style="font-size:13px; font-weight:bold; color:#fff; margin-top:4px;">' + bAcc + '% Acc</div>' +
-            '</div>';
-
-        document.getElementById('repCounts').innerHTML =
-            '<div style="display:flex; justify-content:space-between; border-bottom:1px solid #3c4043; padding-bottom:3px; margin-bottom:4px; font-weight:bold; color:#bbb;">' +
-                '<span>Move Quality</span><span>You &nbsp;|&nbsp; Bot</span>' +
-            '</div>' +
-            '<div style="display:flex; justify-content:space-between; color:#7fffd4;"><span>★ Best / Great</span><span>' + stats.p.best + ' &nbsp;|&nbsp; ' + stats.b.best + '</span></div>' +
-            '<div style="display:flex; justify-content:space-between; color:#a8e6cf;"><span>✓ Good</span><span>' + stats.p.good + ' &nbsp;|&nbsp; ' + stats.b.good + '</span></div>' +
-'?! Inaccuracies' + stats.p.inacc + '  |  ' + stats.b.inacc + '' +
-'? Mistakes' + stats.p.mistake + '  |  ' + stats.b.mistake + '' +
-'?? Blunders' + stats.p.blunder + '  |  ' + stats.b.blunder + '';
+(rData[3] ? ' border-bottom:1px solid #3c4043; padding-bottom:3px; margin-bottom:4px; font-weight:bold;' : '');
+var leftSpan = document.createElement('span');
+leftSpan.innerText = rData[0];
+var rightSpan = document.createElement('span');
+rightSpan.innerText = rData[1];
+rowEl.appendChild(leftSpan);
+rowEl.appendChild(rightSpan);
+cntBox.appendChild(rowEl);
+}
 document.getElementById('repBadge').innerText = moveHistory.length + ' plies';
 ov.style.display = 'flex';
 }
