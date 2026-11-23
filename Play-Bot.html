@@ -2004,6 +2004,11 @@ document.getElementById('msg').innerText = "Your Turn (White)";
         var nextSide = (moveHistory.length % 2 === 0) ? 'W' : 'B';
         evalHistory.push(quickTacticalEval(nextSide));
     }
+    function toggleReport() {
+        var ov = document.getElementById('reportOverlay');
+        if (!ov) return;
+        ov.style.display = (ov.style.display === 'none' || ov.style.display === '') ? 'flex' : 'none';
+    }
 
     function showGameReport(titleText) {
         var ov = document.getElementById('reportOverlay');
