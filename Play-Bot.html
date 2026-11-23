@@ -697,7 +697,7 @@ return score;
         return isSquareAttacked(kr, kc, cl === 'W' ? 'B' : 'W', b);
     }
 
-              function getPseudo(r, c, b, checkCastlingSafe, inSim) {
+                  function getPseudo(r, c, b, checkCastlingSafe, inSim) {
         var p = b.at(r).at(c);
         var isW = !!isWhiteMap[p];
         var cl = isW ? 'W' : 'B';
@@ -794,30 +794,29 @@ return score;
         return m;
     }
 
-
-       function getLegal(r, c, b, inSim, kPos) {
-        var p = b[r][c];
+    function getLegal(r, c, b, inSim, kPos) {
+        var p = b.at(r).at(c);
         if (!p) return [];
         var cl = getColor(p);
         var pseudo = getPseudo(r, c, b, true, inSim);
         var legal = [];
         for (var i = 0; i < pseudo.length; i++) {
-            var m = pseudo[i];
-            var savedTo = b[m.r][m.c];
+            var m = pseudo.at(i);
+            var savedTo = b.at(m.r).at(m.c);
             var savedEp = '';
             if (m.isENPassant) {
-                savedEp = b[r][m.c];
-                b[r][m.c] = '';
+                savedEp = b.at(r).at(m.c);
+                b.at(r).splice(m.c, 1, '');
             }
-            b[m.r][m.c] = p;
-            b[r][c] = '';
+            b.at(m.r).splice(m.c, 1, p);
+            b.at(r).splice(c, 1, '');
             var nextKPos = (p === 'K' || p === 'k') ? { r: m.r, c: m.c } : kPos;
             if (!check(cl, b, nextKPos)) {
                 legal.push(m);
             }
-            b[r][c] = p;
-            b[m.r][m.c] = savedTo;
-            if (m.isENPassant) b[r][m.c] = savedEp;
+            b.at(r).splice(c, 1, p);
+            b.at(m.r).splice(m.c, 1, savedTo);
+            if (m.isENPassant) b.at(r).splice(m.c, 1, savedEp);
         }
         return legal;
     }
