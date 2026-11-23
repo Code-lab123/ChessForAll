@@ -1193,7 +1193,7 @@ return score;
 
 
 
-                                       var zobristHi = new Int32Array(781);
+                                          var zobristHi = new Int32Array(781);
     var zobristLo = new Int32Array(781);
     (function initZobrist() {
         var seed = 1070372;
@@ -1204,8 +1204,8 @@ return score;
             return seed | 0;
         }
         for (var i = 0; i < 781; i++) {
-            zobristHi.set([rand32()], i);
-            zobristLo.set([rand32()], i);
+            zobristHi[i] = rand32();
+            zobristLo[i] = rand32();
         }
     })();
 
@@ -1215,7 +1215,7 @@ return score;
 
         var maxDepth = is3200 ? 14 : (diffSetting === "1600" ? 3 : 2);
         var maxQDepth = is3200 ? 8 : (diffSetting === "1600" ? 2 : (diffSetting === "1200" ? 2 : 1));
-        var timeLimitMs = is3200 ? 2000 : (diffSetting === "1600" ? 90 : (diffSetting === "1200" ? 60 : 40));
+        var timeLimitMs = is3200 ? 2200 : (diffSetting === "1600" ? 90 : (diffSetting === "1200" ? 60 : 40));
         var startTime = Date.now();
         var timeUp = false;
 
@@ -1223,13 +1223,13 @@ return score;
         var isBotBlack = (botColor === 'B');
 
         var simBoard = [];
-        for (var r = 0; r < 8; r++) simBoard.push(bd.at(r).slice());
+        for (var r = 0; r < 8; r++) simBoard.push(bd[r].slice());
 
         var wKing = { r: 7, c: 4 }, bKing = { r: 0, c: 4 };
         for (var r = 0; r < 8; r++) {
             for (var c = 0; c < 8; c++) {
-                if (simBoard.at(r).at(c) === 'K') { wKing.r = r; wKing.c = c; }
-                else if (simBoard.at(r).at(c) === 'k') { bKing.r = r; bKing.c = c; }
+                if (simBoard[r][c] === 'K') { wKing.r = r; wKing.c = c; }
+                else if (simBoard[r][c] === 'k') { bKing.r = r; bKing.c = c; }
             }
         }
 
@@ -1239,17 +1239,17 @@ return score;
 
         var pieceHashMap = { 'P':0, 'N':1, 'B':2, 'R':3, 'Q':4, 'K':5, 'p':6, 'n':7, 'b':8, 'r':9, 'q':10, 'k':11 };
         function computeHash(b, isMax) {
-            var hi = isMax ? zobristHi.at(768) : 0;
-            var lo = isMax ? zobristLo.at(768) : 0;
+            var hi = isMax ? zobristHi[768] : 0;
+            var lo = isMax ? zobristLo[768] : 0;
             for (var r = 0; r < 8; r++) {
-                var row = b.at(r);
+                var row = b[r];
                 var base = r << 3;
                 for (var c = 0; c < 8; c++) {
-                    var p = row.at(c);
+                    var p = row[c];
                     if (p !== '') {
                         var idx = pieceHashMap[p] * 64 + base + c;
-                        hi ^= zobristHi.at(idx);
-                        lo ^= zobristLo.at(idx);
+                        hi ^= zobristHi[idx];
+                        lo ^= zobristLo[idx];
                     }
                 }
             }
@@ -1258,14 +1258,13 @@ return score;
 
         var gameRepHistory = Object.create(null);
         for (var h = 0; h < boardHistory.length; h++) {
-            var entry = JSON.parse(boardHistory.at(h));
+            var entry = JSON.parse(boardHistory[h]);
             var hBoard = Array.isArray(entry) ? entry : entry.bd;
             var hKey = computeHash(hBoard, h % 2 === 1);
             gameRepHistory[hKey] = (gameRepHistory[hKey] || 0) + 1;
         }
         var searchPathKeys = new Float64Array(40);
 
-        // Fresh TT per move prevents stale aspiration bounds from corrupting tactics
         var ttTable = Object.create(null);
         var ttSize = 0;
         var killers1 = new Int32Array(40);
@@ -1274,12 +1273,12 @@ return score;
         function isLosingCapture(b, tr, tc, attVal, targetVal, byWhite) {
             if (targetVal >= attVal) return false;
             if (byWhite) {
-                if (tr > 0 && ((tc > 0 && b.at(tr - 1).at(tc - 1) === 'p') || (tc < 7 && b.at(tr - 1).at(tc + 1) === 'p'))) {
-                    return (targetVal + 105 < attVal);
+                if (tr > 0 && ((tc > 0 && b[tr - 1][tc - 1] === 'p') || (tc < 7 && b[tr - 1][tc + 1] === 'p'))) {
+                    return (targetVal + 100 < attVal);
                 }
             } else {
-                if (tr < 7 && ((tc > 0 && b.at(tr + 1).at(tc - 1) === 'P') || (tc < 7 && b.at(tr + 1).at(tc + 1) === 'P'))) {
-                    return (targetVal + 105 < attVal);
+                if (tr < 7 && ((tc > 0 && b[tr + 1][tc - 1] === 'P') || (tc < 7 && b[tr + 1][tc + 1] === 'P'))) {
+                    return (targetVal + 100 < attVal);
                 }
             }
             return false;
@@ -1292,12 +1291,12 @@ return score;
             var colorMap = isW ? isWhiteMap : isBlackMap;
             var enemyMap = isW ? isBlackMap : isWhiteMap;
             var backRank = isW ? 7 : 0;
-            var k1 = killers1.at(ply);
-            var k2 = killers2.at(ply);
+            var k1 = killers1[ply];
+            var k2 = killers2[ply];
 
             function pushMove(fr, fc, tr, tc, isEP, isCastle) {
-                var target = b.at(tr).at(tc);
-                var piece = b.at(fr).at(fc);
+                var target = b[tr][tc];
+                var piece = b[fr][fc];
                 var isPromo = (piece === 'P' && tr === 0) || (piece === 'p' && tr === 7);
                 var isCap = (target !== '' || isEP);
 
@@ -1336,77 +1335,77 @@ return score;
             }
 
             for (var r = 0; r < 8; r++) {
-                var row = b.at(r);
+                var row = b[r];
                 for (var c = 0; c < 8; c++) {
-                    var p = row.at(c);
+                    var p = row[c];
                     if (p === '' || !colorMap[p]) continue;
 
                     if (p === 'P' || p === 'p') {
                         var d = isW ? -1 : 1, startR = isW ? 6 : 1;
                         var r1 = r + d;
                         if (r1 >= 0 && r1 < 8) {
-                            if (b.at(r1).at(c) === '') {
+                            if (b[r1][c] === '') {
                                 pushMove(r, c, r1, c, false, false);
-                                if (r === startR && b.at(r + 2 * d).at(c) === '') {
+                                if (r === startR && b[r + 2 * d][c] === '') {
                                     pushMove(r, c, r + 2 * d, c, false, false);
                                 }
                             }
                             if (c > 0) {
-                                if (enemyMap[b.at(r1).at(c - 1)]) pushMove(r, c, r1, c - 1, false, false);
+                                if (enemyMap[b[r1][c - 1]]) pushMove(r, c, r1, c - 1, false, false);
                                 else if (rootMode && epSquare && epSquare.r === r1 && epSquare.c === c - 1) pushMove(r, c, r1, c - 1, true, false);
                             }
                             if (c < 7) {
-                                if (enemyMap[b.at(r1).at(c + 1)]) pushMove(r, c, r1, c + 1, false, false);
+                                if (enemyMap[b[r1][c + 1]]) pushMove(r, c, r1, c + 1, false, false);
                                 else if (rootMode && epSquare && epSquare.r === r1 && epSquare.c === c + 1) pushMove(r, c, r1, c + 1, true, false);
                             }
                         }
                     } else if (p === 'N' || p === 'n') {
                         for (var i = 0; i < 8; i++) {
-                            var nr = r + N_DR.at(i), nc = c + N_DC.at(i);
+                            var nr = r + N_DR[i], nc = c + N_DC[i];
                             if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-                                var sq = b.at(nr).at(nc);
+                                var sq = b[nr][nc];
                                 if (sq === '' || enemyMap[sq]) pushMove(r, c, nr, nc, false, false);
                             }
                         }
                     } else if (p === 'B' || p === 'b') {
                         for (var i = 0; i < 4; i++) {
-                            var nr = r + B_DR.at(i), nc = c + B_DC.at(i);
+                            var nr = r + B_DR[i], nc = c + B_DC[i];
                             while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-                                var sq = b.at(nr).at(nc);
+                                var sq = b[nr][nc];
                                 if (sq === '') pushMove(r, c, nr, nc, false, false);
                                 else { if (enemyMap[sq]) pushMove(r, c, nr, nc, false, false); break; }
-                                nr += B_DR.at(i); nc += B_DC.at(i);
+                                nr += B_DR[i]; nc += B_DC[i];
                             }
                         }
                     } else if (p === 'R' || p === 'r') {
                         for (var i = 0; i < 4; i++) {
-                            var nr = r + R_DR.at(i), nc = c + R_DC.at(i);
+                            var nr = r + R_DR[i], nc = c + R_DC[i];
                             while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-                                var sq = b.at(nr).at(nc);
+                                var sq = b[nr][nc];
                                 if (sq === '') pushMove(r, c, nr, nc, false, false);
                                 else { if (enemyMap[sq]) pushMove(r, c, nr, nc, false, false); break; }
-                                nr += R_DR.at(i); nc += R_DC.at(i);
+                                nr += R_DR[i]; nc += R_DC[i];
                             }
                         }
                     } else if (p === 'Q' || p === 'q') {
                         for (var i = 0; i < 8; i++) {
-                            var nr = r + K_DR.at(i), nc = c + K_DC.at(i);
+                            var nr = r + K_DR[i], nc = c + K_DC[i];
                             while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-                                var sq = b.at(nr).at(nc);
+                                var sq = b[nr][nc];
                                 if (sq === '') pushMove(r, c, nr, nc, false, false);
                                 else { if (enemyMap[sq]) pushMove(r, c, nr, nc, false, false); break; }
-                                nr += K_DR.at(i); nc += K_DC.at(i);
+                                nr += K_DR[i]; nc += K_DC[i];
                             }
                         }
                     } else if (p === 'K' || p === 'k') {
                         for (var i = 0; i < 8; i++) {
-                            var nr = r + K_DR.at(i), nc = c + K_DC.at(i);
+                            var nr = r + K_DR[i], nc = c + K_DC[i];
                             if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-var sq = b.at(nr).at(nc);
-if (sq === '' || enemyMap[sq]) pushMove(r, c, nr, nc, false, false);
-}
-}
-if (rootMode && !capturesOnly) {
+                                var sq = b[nr][nc];
+                                if (sq === '' || enemyMap[sq]) pushMove(r, c, nr, nc, false, false);
+                            }
+                        }
+                        if (rootMode && !capturesOnly) {
 var opp = isW ? 'B' : 'W';
 var rRow = b.at(backRank);
 if (r === backRank && c === 4 && !hasMoved[cl + '_K'] && !isSquareAttacked(backRank, 4, opp, b)) {
@@ -1429,40 +1428,36 @@ return { moves: moves, scores: scores };
 }
 function pickNextMove(gen, idx) {
 var moves = gen.moves, scores = gen.scores, len = moves.length;
-var bestIdx = idx, bestScore = scores.at(idx);
+var bestIdx = idx, bestScore = scores[idx];
 for (var j = idx + 1; j < len; j++) {
-if (scores.at(j) > bestScore) {
-bestScore = scores.at(j);
+if (scores[j] > bestScore) {
+bestScore = scores[j];
 bestIdx = j;
 }
 }
 if (bestIdx !== idx) {
-var tmpM = moves.at(idx);
-moves.splice(idx, 1, moves.at(bestIdx));
-moves.splice(bestIdx, 1, tmpM);
-var tmpS = scores.at(idx);
-scores.splice(idx, 1, scores.at(bestIdx));
-scores.splice(bestIdx, 1, tmpS);
+var tmpM = moves[idx]; moves[idx] = moves[bestIdx]; moves[bestIdx] = tmpM;
+var tmpS = scores[idx]; scores[idx] = scores[bestIdx]; scores[bestIdx] = tmpS;
 }
-return moves.at(idx);
+return moves[idx];
 }
 function makeSimCode(b, code) {
 var fr = (code >> 9) & 7, fc = (code >> 6) & 7, tr = (code >> 3) & 7, tc = code & 7;
 var isEP = (code & 4096) !== 0;
 var isCastle = (code & 8192) !== 0;
-var origPiece = b.at(fr).at(fc);
-var captured = b.at(tr).at(tc);
+var origPiece = b[fr][fc];
+var captured = b[tr][tc];
 var epCaptured = '';
 var placedPiece = origPiece;
 if (tr === 7 && origPiece === 'p') placedPiece = 'q';
 else if (tr === 0 && origPiece === 'P') placedPiece = 'Q';
-b.at(tr).splice(tc, 1, placedPiece);
-b.at(fr).splice(fc, 1, '');
+b[tr][tc] = placedPiece;
+b[fr][fc] = '';
 if (origPiece === 'K') { wKing.r = tr; wKing.c = tc; }
 else if (origPiece === 'k') { bKing.r = tr; bKing.c = tc; }
 if (isEP) {
-epCaptured = b.at(fr).at(tc);
-b.at(fr).splice(tc, 1, '');
+epCaptured = b[fr][tc];
+b[fr][tc] = '';
 }
 if (isCastle) {
 var cRow = b.at(tr);
@@ -1481,11 +1476,11 @@ var fr = (code >> 9) & 7, fc = (code >> 6) & 7, tr = (code >> 3) & 7, tc = code 
 var isEP = (code & 4096) !== 0;
 var isCastle = (code & 8192) !== 0;
 var origPiece = u.origPiece;
-b.at(fr).splice(fc, 1, origPiece);
-b.at(tr).splice(tc, 1, u.captured);
+b[fr][fc] = origPiece;
+b[tr][tc] = u.captured;
 if (origPiece === 'K') { wKing.r = fr; wKing.c = fc; }
 else if (origPiece === 'k') { bKing.r = fr; bKing.c = fc; }
-if (isEP) b.at(fr).splice(tc, 1, u.epCaptured);
+if (isEP) b[fr][tc] = u.epCaptured;
 if (isCastle) {
 var cRow = b.at(tr);
 if (tc === 6) {
@@ -1497,6 +1492,20 @@ cRow.splice(3, 1, '');
 }
 }
 }
+function hasNonPawnMaterial(b, isBlackSide) {
+for (var r = 0; r < 8; r++) {
+var row = b[r];
+for (var c = 0; c < 8; c++) {
+var p = row[c];
+if (isBlackSide) {
+if (p === 'n' || p === 'b' || p === 'r' || p === 'q') return true;
+} else {
+if (p === 'N' || p === 'B' || p === 'R' || p === 'Q') return true;
+}
+}
+}
+return false;
+}
 function evalEnhanced(b) {
 var s = evalBoard(b);
 if (!is3200) return s;
@@ -1504,40 +1513,80 @@ var wKingShield = 0, bKingShield = 0;
 var wHasHeavy = false, bHasHeavy = false;
 var wRookCols = [], bRookCols = [];
 var wPawns = new Int8Array(8), bPawns = new Int8Array(8);
+var wMinPawn = new Int8Array(8).fill(8);
+var bMaxPawn = new Int8Array(8).fill(-1);
 for (var r = 0; r < 8; r++) {
-var row = b.at(r);
+var row = b[r];
 for (var c = 0; c < 8; c++) {
-var p = row.at(c);
+var p = row[c];
 if (p === 'R' || p === 'Q') {
 wHasHeavy = true;
 if (p === 'R') {
 wRookCols.push(c);
-if (r === 1) s -= 32;
+if (r === 1) s -= 35;
 }
 } else if (p === 'r' || p === 'q') {
 bHasHeavy = true;
 if (p === 'r') {
 bRookCols.push(c);
-if (r === 6) s += 32;
+if (r === 6) s += 35;
 }
 } else if (p === 'P') {
-wPawns.set([wPawns.at(c) + 1], c);
+wPawns[c]++;
+if (r < wMinPawn[c]) wMinPawn[c] = r;
 } else if (p === 'p') {
-bPawns.set([bPawns.at(c) + 1], c);
+bPawns[c]++;
+if (r > bMaxPawn[c]) bMaxPawn[c] = r;
 }
 }
+}
+// Strong passed-pawn & connected-passer evaluation (prevents allowing steamrollers)
+var wPassedCols = new Int8Array(8);
+var bPassedCols = new Int8Array(8);
+for (var c = 0; c < 8; c++) {
+if (wPawns[c] > 0) {
+var wr = wMinPawn[c];
+var wBlocked = (bMaxPawn[c] < wr) ||
+(c > 0 && bMaxPawn[c - 1] < wr) ||
+(c < 7 && bMaxPawn[c + 1] < wr);
+if (!wBlocked) {
+wPassedCols[c] = 1;
+var adv = 7 - wr; // 1 to 6
+var bonus = adv * adv * 5;
+if (adv >= 4) bonus += 45;
+if (adv >= 5) bonus += 85;
+s -= bonus;
+}
+}
+if (bPawns[c] > 0) {
+var br = bMaxPawn[c];
+var bBlocked = (wMinPawn[c] > br) ||
+(c > 0 && wMinPawn[c - 1] > br) ||
+(c < 7 && wMinPawn[c + 1] > br);
+if (!bBlocked) {
+bPassedCols[c] = 1;
+var bonus = br * br * 5;
+if (br >= 4) bonus += 45;
+if (br >= 5) bonus += 85;
+s += bonus;
+}
+}
+}
+for (var c = 0; c < 7; c++) {
+if (wPassedCols[c] && wPassedCols[c + 1]) s -= 65;
+if (bPassedCols[c] && bPassedCols[c + 1]) s += 65;
 }
 // Open & semi-open file rook control + doubled rooks
 for (var i = 0; i < bRookCols.length; i++) {
-var bc = bRookCols.at(i);
-if (bPawns.at(bc) === 0) s += (wPawns.at(bc) === 0) ? 28 : 14;
+var bc = bRookCols[i];
+if (bPawns[bc] === 0) s += (wPawns[bc] === 0) ? 28 : 14;
 }
 for (var i = 0; i < wRookCols.length; i++) {
-var wc = wRookCols.at(i);
-if (wPawns.at(wc) === 0) s -= (bPawns.at(wc) === 0) ? 28 : 14;
+var wc = wRookCols[i];
+if (wPawns[wc] === 0) s -= (bPawns[wc] === 0) ? 28 : 14;
 }
-if (bRookCols.length === 2 && bRookCols.at(0) === bRookCols.at(1) && bPawns.at(bRookCols.at(0)) === 0) s += 24;
-if (wRookCols.length === 2 && wRookCols.at(0) === wRookCols.at(1) && wPawns.at(wRookCols.at(0)) === 0) s -= 24;
+if (bRookCols.length === 2 && bRookCols.at(0) === bRookCols.at(1) && bPawns[bRookCols.at(0)] === 0) s += 24;
+if (wRookCols.length === 2 && wRookCols.at(0) === wRookCols.at(1) && wPawns[wRookCols.at(0)] === 0) s -= 24;
 // Central pawn control
 if (b.at(3).at(3) === 'p') s += 16;
 if (b.at(3).at(4) === 'p') s += 16;
@@ -1547,13 +1596,13 @@ if (b.at(4).at(4) === 'P') s -= 16;
 for (var dc = -1; dc <= 1; dc++) {
 var wc = wKing.c + dc;
 if (wc >= 0 && wc < 8 && wKing.r > 0) {
-if (b.at(wKing.r - 1).at(wc) === 'P') wKingShield += 16;
-else if (wKing.r > 1 && b.at(wKing.r - 2).at(wc) === 'P') wKingShield += 8;
+if (b[wKing.r - 1][wc] === 'P') wKingShield += 16;
+else if (wKing.r > 1 && b[wKing.r - 2][wc] === 'P') wKingShield += 8;
 }
 var bc = bKing.c + dc;
 if (bc >= 0 && bc < 8 && bKing.r < 7) {
-if (b.at(bKing.r + 1).at(bc) === 'p') bKingShield += 16;
-else if (bKing.r < 6 && b.at(bKing.r + 2).at(bc) === 'p') bKingShield += 8;
+if (b[bKing.r + 1][bc] === 'p') bKingShield += 16;
+else if (bKing.r < 6 && b[bKing.r + 2][bc] === 'p') bKingShield += 8;
 }
 }
 s += (bKingShield - wKingShield);
@@ -1592,7 +1641,7 @@ return s;
 }
 var nodes = 0;
 function quiesce(b, alpha, beta, isMax, qDepth) {
-if ((++nodes & 1023) === 0 && Date.now() - startTime > timeLimitMs) {
+if ((++nodes & 2047) === 0 && Date.now() - startTime > timeLimitMs) {
 timeUp = true;
 return 0;
 }
@@ -1619,7 +1668,7 @@ var gen = genMoves(activeColor, b, !inCheck, 39, 0, false);
 var legalCount = 0;
 for (var i = 0; i < gen.moves.length; i++) {
 var code = pickNextMove(gen, i);
-if (!inCheck && gen.scores.at(i) < 0) break;
+if (!inCheck && gen.scores[i] < 0) break;
 var uData = makeSimCode(b, code);
 if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
 unmakeSimCode(b, code, uData);
@@ -1643,7 +1692,7 @@ return isMax ? -999999 : 999999;
 return isMax ? alpha : beta;
 }
 function minimax(b, depth, alpha, beta, isMax, ply, allowNull) {
-if ((++nodes & 1023) === 0 && Date.now() - startTime > timeLimitMs) {
+if ((++nodes & 2047) === 0 && Date.now() - startTime > timeLimitMs) {
 timeUp = true;
 return 0;
 }
@@ -1651,16 +1700,16 @@ var key = computeHash(b, isMax);
 if (ply > 0 && allowNull) {
 if (gameRepHistory[key] >= 2) return 0;
 for (var sp = 0; sp < ply; sp++) {
-if (searchPathKeys.at(sp) === key) return 0;
+if (searchPathKeys[sp] === key) return 0;
 }
 }
-searchPathKeys.set([key], ply);
+searchPathKeys[ply] = key;
 var activeColor = isMax ? 'B' : 'W';
 var enemyColor = isMax ? 'W' : 'B';
 var myKing = isMax ? bKing : wKing;
 var oppKing = isMax ? wKing : bKing;
 var inCheck = isSquareAttacked(myKing.r, myKing.c, enemyColor, b);
-if (is3200 && inCheck && ply < 30) {
+if (is3200 && inCheck && ply < 28) {
 depth += 1;
 }
 var alphaOrig = alpha;
@@ -1677,7 +1726,7 @@ if (alpha >= beta) return ttEntry.score;
 }
 }
 if (depth <= 0) return quiesce(b, alpha, beta, isMax, maxQDepth);
-if (is3200 && allowNull && !inCheck && depth >= 3 && ply > 0) {
+if (is3200 && allowNull && !inCheck && depth >= 3 && ply > 0 && hasNonPawnMaterial(b, isMax)) {
 var R = depth >= 6 ? 3 : 2;
 var nullScore = isMax
 ? minimax(b, depth - 1 - R, beta - 1, beta, false, ply + 1, false)
@@ -1694,8 +1743,8 @@ var maxVal = -Infinity;
 for (var i = 0; i < gen.moves.length; i++) {
 var code = pickNextMove(gen, i);
 var fr = (code >> 9) & 7, fc = (code >> 6) & 7, tr = (code >> 3) & 7, tc = code & 7;
-var movedPiece = b.at(fr).at(fc);
-var isQuiet = (b.at(tr).at(tc) === '' && (code & 4096) === 0);
+var movedPiece = b[fr][fc];
+var isQuiet = (b[tr][tc] === '' && (code & 4096) === 0);
 var isKingOrRook = (movedPiece === 'k' || movedPiece === 'r');
 var uData = makeSimCode(b, code);
 if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
@@ -1722,9 +1771,9 @@ bestMoveCode = code;
 }
 if (score > alpha) alpha = score;
 if (beta <= alpha) {
-if (isQuiet && ply < 40 && killers1.at(ply) !== code) {
-killers2.set([killers1.at(ply)], ply);
-killers1.set([code], ply);
+if (isQuiet && ply < 40 && killers1[ply] !== code) {
+killers2[ply] = killers1[ply];
+killers1[ply] = code;
 }
 break;
 }
@@ -1743,8 +1792,8 @@ var minVal = Infinity;
 for (var i = 0; i < gen.moves.length; i++) {
 var code = pickNextMove(gen, i);
 var fr = (code >> 9) & 7, fc = (code >> 6) & 7, tr = (code >> 3) & 7, tc = code & 7;
-var movedPiece = b.at(fr).at(fc);
-var isQuiet = (b.at(tr).at(tc) === '' && (code & 4096) === 0);
+var movedPiece = b[fr][fc];
+var isQuiet = (b[tr][tc] === '' && (code & 4096) === 0);
 var isKingOrRook = (movedPiece === 'K' || movedPiece === 'R');
 var uData = makeSimCode(b, code);
 if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
@@ -1771,9 +1820,9 @@ bestMoveCode = code;
 }
 if (score < beta) beta = score;
 if (beta <= alpha) {
-if (isQuiet && ply < 40 && killers1.at(ply) !== code) {
-killers2.set([killers1.at(ply)], ply);
-killers1.set([code], ply);
+if (isQuiet && ply < 40 && killers1[ply] !== code) {
+killers2[ply] = killers1[ply];
+killers1[ply] = code;
 }
 break;
 }
@@ -1841,24 +1890,24 @@ encodeMove(0, 6, 2, 5, false, false)
 }
 var validBookCodes = [];
 for (var bIdx = 0; bIdx < bookMoves.length; bIdx++) {
-if (topCodes.indexOf(bookMoves.at(bIdx)) !== -1) validBookCodes.push(bookMoves.at(bIdx));
+if (topCodes.indexOf(bookMoves[bIdx]) !== -1) validBookCodes.push(bookMoves[bIdx]);
 }
-var chosenBookCode = validBookCodes.length > 0 ? validBookCodes.at(Math.floor(Math.random() * validBookCodes.length)) : 0;
+var chosenBookCode = validBookCodes.length > 0 ? validBookCodes[Math.floor(Math.random() * validBookCodes.length)] : 0;
 var bestEvaluatedMoves = [];
 var completedDepth = 0;
 if (is3200 && chosenBookCode !== 0 && moveHistory.length <= 3) {
 bestEvaluatedMoves = [{ code: chosenBookCode, score: evalEnhanced(simBoard) }];
 } else {
-searchPathKeys.set([computeHash(simBoard, isBotBlack)], 0);
+searchPathKeys.splice(0, 1, computeHash(simBoard, isBotBlack));
 var lastIterScore = evalEnhanced(simBoard);
 for (var d = 1; d <= maxDepth; d++) {
 var currentDepthMoves = [];
-var aspWindow = (is3200 && d >= 4) ? 75 : Infinity;
+var aspWindow = (is3200 && d >= 4) ? 80 : Infinity;
 var rootAlpha = (aspWindow === Infinity) ? -Infinity : (lastIterScore - aspWindow);
 var rootBeta = (aspWindow === Infinity) ? Infinity : (lastIterScore + aspWindow);
 var retryFull = false;
 for (var i = 0; i < topCodes.length; i++) {
-var code = topCodes.at(i);
+var code = topCodes[i];
 var uData = makeSimCode(simBoard, code);
 var baseValue;
 if (i === 0 || !is3200) {
@@ -1897,7 +1946,7 @@ currentDepthMoves = [];
 rootAlpha = -Infinity;
 rootBeta = Infinity;
 for (var i = 0; i < topCodes.length; i++) {
-var code = topCodes.at(i);
+var code = topCodes[i];
 var uData = makeSimCode(simBoard, code);
 var baseValue = minimax(simBoard, d - 1, rootAlpha, rootBeta, !isBotBlack, 1, true);
 unmakeSimCode(simBoard, code, uData);
@@ -1948,8 +1997,8 @@ isENPassant: (chosenCode & 4096) !== 0,
 isCastle: (chosenCode & 8192) !== 0
 }
 };
-var botMovingPiece = bd.at(bm.fr).at(bm.fc);
-var botIsCapture = (bd.at(bm.to.r).at(bm.to.c) !== '' || bm.to.isENPassant);
+var botMovingPiece = bd[bm.fr][bm.fc];
+var botIsCapture = (bd[bm.to.r][bm.to.c] !== '' || bm.to.isENPassant);
 var botSanBase = buildSANPrefix(bm.fr, bm.fc, bm.to.r, bm.to.c, bm.to);
 var isBotPromo = (botMovingPiece === 'p' && bm.to.r === 7) || (botMovingPiece === 'P' && bm.to.r === 0);
 if (isBotPromo) botSanBase += '=Q';
@@ -1959,16 +2008,16 @@ if (botMovingPiece === 'R' && bm.fr === 7 && bm.fc === 7) hasMoved['W_R8'] = tru
 if (botMovingPiece === 'k') hasMoved['B_K'] = true;
 if (botMovingPiece === 'r' && bm.fr === 0 && bm.fc === 0) hasMoved['B_R1'] = true;
 if (botMovingPiece === 'r' && bm.fr === 0 && bm.fc === 7) hasMoved['B_R8'] = true;
-if (bm.to.isENPassant) bd.at(bm.fr).splice(bm.to.c, 1, '');
+if (bm.to.isENPassant) bd[bm.fr][bm.to.c] = '';
 var botFromCol = bm.fc;
 var botFromRow = bm.fr;
-bd.at(bm.to.r).splice(bm.to.c, 1, botMovingPiece);
-bd.at(bm.fr).splice(bm.fc, 1, '');
+bd[bm.to.r][bm.to.c] = botMovingPiece;
+bd[bm.fr][bm.fc] = '';
 lastMove = { fr: botFromRow, fc: botFromCol, tr: bm.to.r, tc: bm.to.c };
 halfMoves = (botMovingPiece === 'p' || botMovingPiece === 'P' || botIsCapture) ? 0 : halfMoves + 1;
-var landedPiece = bd.at(bm.to.r).at(bm.to.c);
-if (landedPiece === 'p' && bm.to.r === 7) bd.at(bm.to.r).splice(bm.to.c, 1, 'q');
-if (landedPiece === 'P' && bm.to.r === 0) bd.at(bm.to.r).splice(bm.to.c, 1, 'Q');
+var landedPiece = bd[bm.to.r][bm.to.c];
+if (landedPiece === 'p' && bm.to.r === 7) bd[bm.to.r][bm.to.c] = 'q';
+if (landedPiece === 'P' && bm.to.r === 0) bd[bm.to.r][bm.to.c] = 'Q';
 if ((landedPiece === 'K' || landedPiece === 'k') && Math.abs(bm.to.c - botFromCol) === 2) {
 var realCastleRow = bd.at(bm.to.r);
 if (bm.to.c === 6) {
