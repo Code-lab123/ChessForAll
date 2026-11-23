@@ -1977,6 +1977,7 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             b: { best: 0, good: 0, inacc: 0, mistake: 0, blunder: 0 }
         };
 
+
         for (var i = 0; i < moveHistory.length; i++) {
             var whiteMoved = (i % 2 === 0);
             var isPlayerMove = (whiteMoved === pIsWhite);
@@ -1985,6 +1986,9 @@ document.getElementById('msg').innerText = "Your Turn (White)";
 
             var cpLoss = whiteMoved ? Math.max(0, before - after) : Math.max(0, after - before);
             if (Math.abs(before) > 5000 || Math.abs(after) > 5000) cpLoss = 0;
+
+if (whiteMoved && before >= 600 && after >= 550) cpLoss = 0;
+if (!whiteMoved && before <= -600 && after <= -550) cpLoss = 0;
 
             var bucket = isPlayerMove ? stats.p : stats.b;
             if (cpLoss <= 25) bucket.best++;
