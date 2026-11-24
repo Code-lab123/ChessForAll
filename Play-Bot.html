@@ -1664,11 +1664,11 @@ var standPat = evalEnhanced(b);
 if (qDepth <= 0) return standPat;
 if (isMax) {
 if (standPat >= beta) return beta;
-if (standPat + 950 < alpha) return alpha;
+if (standPat + 1300 < alpha) return alpha;
 if (standPat > alpha) alpha = standPat;
 } else {
 if (standPat <= alpha) return alpha;
-if (standPat - 950 > beta) return beta;
+if (standPat - 1300 > beta) return beta;
 if (standPat < beta) beta = standPat;
 }
 } else if (qDepth <= -3) {
@@ -1737,7 +1737,8 @@ if (alpha >= beta) return ttEntry.score;
 }
 }
 if (depth <= 0) return quiesce(b, alpha, beta, isMax, maxQDepth);
-if (is3200 && allowNull && !inCheck && depth >= 3 && ply > 0 && hasNonPawnMaterial(b, isMax)) {
+            if (is3200 && allowNull && !inCheck && depth >= 3 && ply > 1 && hasNonPawnMaterial(b, isMax)) {
+
 var R = depth >= 6 ? 3 : 2;
 var nullScore = isMax
 ? minimax(b, depth - 1 - R, beta - 1, beta, false, ply + 1, false)
