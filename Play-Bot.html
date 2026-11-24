@@ -2227,7 +2227,7 @@ document.getElementById('msg').innerText = "Your Turn (White)";
         ov.style.display = (ov.style.display === 'none' || ov.style.display === '') ? 'flex' : 'none';
     }
 
-    function showGameReport(titleText) {
+        function showGameReport(titleText) {
         var ov = document.getElementById('reportOverlay');
         var btn = document.getElementById('toggleRepBtn');
         if (btn) btn.style.display = 'inline-block';
@@ -2241,7 +2241,6 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             b: { best: 0, good: 0, inacc: 0, mistake: 0, blunder: 0 }
         };
 
-        // Chess.com CAPS2 Win Probability % from White's perspective (0 to 100)
         function cpToWinPct(cp) {
             var clamped = Math.max(-1200, Math.min(1200, cp));
             return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * clamped)) - 1);
@@ -2253,12 +2252,10 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             var before = (i < evalHistory.length) ? evalHistory.at(i) : 0;
             var after = (i + 1 < evalHistory.length) ? evalHistory.at(i + 1) : before;
 
-            // Already completely winning (> +900 cp) and stays > +900 cp -> Best
-            if (Math.abs(before) > 900 && Math.abs(after) > 900 && ((before > 0) === (after > 0))) {
+            // Garbage-time moves (> 700 cp decided): count as Best in table, but do NOT pad accuracy %
+            if (Math.abs(before) > 700 && Math.abs(after) > 700 && ((before > 0) === (after > 0))) {
                 var skipBucket = isPlayerMove ? stats.p : stats.b;
                 skipBucket.best++;
-                if (isPlayerMove) pWinLosses.push(0);
-                else bWinLosses.push(0);
                 continue;
             }
 
@@ -2266,7 +2263,6 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             var winAfter = whiteMoved ? cpToWinPct(after) : (100 - cpToWinPct(after));
             var winDrop = Math.max(0, winBefore - winAfter);
 
-            // Chess.com Expected Points Loss thresholds
             var bucket = isPlayerMove ? stats.p : stats.b;
             if (winDrop <= 2.0) bucket.best++;
             else if (winDrop <= 5.0) bucket.good++;
@@ -2278,7 +2274,6 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             else bWinLosses.push(winDrop);
         }
 
-        // Chess.com CAPS2 Accuracy formula
         function calcCAPS2Accuracy(winDrops) {
             if (winDrops.length === 0) return '100.0';
             var sum = 0;
@@ -2290,35 +2285,30 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             return (sum / winDrops.length).toFixed(1);
         }
 
-        // Chess.com-style Game Rating Estimator
-               // Inside calcChessComGameRating:
-        function calcChessComGameRating(accStr, outcome, oppRating, blunderCount, moveCount) {
+        function calcChessComGameRating(accStr, outcome, oppRating, blunderCount, mistakeCount, competitiveMoves) {
             var acc = parseFloat(accStr);
-            var accElo = 350 + Math.pow(acc / 100, 1.95) * 2400;
+            var accElo = 350 + Math.pow(acc / 100, 2.15) * 2350;
             var outcomeBonus = (outcome === 1 ? 180 : (outcome === 0.5 ? 0 : -180));
             var oppAnchor = oppRating + outcomeBonus;
-            var blunderDrag = (blunderCount / Math.max(moveCount, 20)) * 380;
-            var blended = (accElo * 0.72) + (oppAnchor * 0.28) - blunderDrag;
-            return Math.max(400, Math.min(2950, Math.round(blended / 10) * 10));
-          var ceiling = Math.min(2950, oppRating + 850);
-return Math.max(400, Math.min(ceiling, Math.round(blended / 10) * 10));
-
+            var denom = Math.max(competitiveMoves, 12);
+            var errorDrag = ((blunderCount * 420) + (mistakeCount * 140)) / denom;
+            var blended = (accElo * 0.72) + (oppAnchor * 0.28) - errorDrag;
+            var ceiling = Math.min(2950, oppRating + 850);
+            return Math.max(400, Math.min(ceiling, Math.round(blended / 10) * 10));
         }
-
 
         var pAcc = calcCAPS2Accuracy(pWinLosses);
         var bAcc = calcCAPS2Accuracy(bWinLosses);
         var diffVal = document.getElementById('diff').value;
-                var botNominalElo = diffVal === '3200' ? 2500 : (diffVal === '1600' ? 1600 : (diffVal === '1200' ? 1200 : 800));
-        var playerAnchorElo = diffVal === '3200' ? 2150 : botNominalElo;
-
+        var botNominalElo = diffVal === '3200' ? 2500 : (diffVal === '1600' ? 1600 : (diffVal === '1200' ? 1200 : 800));
+        var playerAnchorElo = diffVal === '3200' ? 2100 : botNominalElo;
 
         var pOutcome = 0.5, bOutcome = 0.5;
         if (gameResult === '1-0') { pOutcome = pIsWhite ? 1 : 0; bOutcome = pIsWhite ? 0 : 1; }
         else if (gameResult === '0-1') { pOutcome = pIsWhite ? 0 : 1; bOutcome = pIsWhite ? 1 : 0; }
 
-        var pElo = calcChessComGameRating(pAcc, pOutcome, botNominalElo, stats.p.blunder, pWinLosses.length);
-        var bElo = calcChessComGameRating(bAcc, bOutcome, playerAnchorElo, stats.b.blunder, bWinLosses.length);
+        var pElo = calcChessComGameRating(pAcc, pOutcome, botNominalElo, stats.p.blunder, stats.p.mistake, pWinLosses.length);
+        var bElo = calcChessComGameRating(bAcc, bOutcome, playerAnchorElo, stats.b.blunder, stats.b.mistake, bWinLosses.length);
 
         document.getElementById('repTitle').innerText = titleText;
 
@@ -2343,33 +2333,36 @@ return Math.max(400, Math.min(ceiling, Math.round(blended / 10) * 10));
             return card;
         }
         sumBox.appendChild(makeCard('YOU (' + (pIsWhite ? 'White' : 'Black') + ')', pElo, pAcc, '#7fffd4'));
-sumBox.appendChild(makeCard('CLUB BOT', bElo, bAcc, '#ff7f7f'));
-var cntBox = document.getElementById('repCounts');
-cntBox.innerHTML = '';
-var rows = [
-['Move Quality', 'You  |  Bot', '#bbb', true],
-['★ Best / Great', stats.p.best + '  |  ' + stats.b.best, '#7fffd4', false],
-['✓ Good', stats.p.good + '  |  ' + stats.b.good, '#a8e6cf', false],
-['?! Inaccuracies', stats.p.inacc + '  |  ' + stats.b.inacc, '#ffd54f', false],
-['? Mistakes', stats.p.mistake + '  |  ' + stats.b.mistake, '#ff8a65', false],
-['?? Blunders', stats.p.blunder + '  |  ' + stats.b.blunder, '#ff5252', false]
-];
-for (var rIdx = 0; rIdx < rows.length; rIdx++) {
-var rData = rows.at(rIdx);
-var rowEl = document.createElement('div');
-rowEl.style.cssText = 'display:flex; justify-content:space-between; color:' + rData.at(2) + ';' +
-(rData.at(3) ? ' border-bottom:1px solid #3c4043; padding-bottom:3px; margin-bottom:4px; font-weight:bold;' : '');
-var leftSpan = document.createElement('span');
-leftSpan.innerText = rData.at(0);
-var rightSpan = document.createElement('span');
-rightSpan.innerText = rData.at(1);
-rowEl.appendChild(leftSpan);
-rowEl.appendChild(rightSpan);
-cntBox.appendChild(rowEl);
-}
-document.getElementById('repBadge').innerText = moveHistory.length + ' plies';
-ov.style.display = 'flex';
-}
+        sumBox.appendChild(makeCard('CLUB BOT', bElo, bAcc, '#ff7f7f'));
+
+        var cntBox = document.getElementById('repCounts');
+        cntBox.innerHTML = '';
+        var rows = [
+            ['Move Quality', 'You  |  Bot', '#bbb', true],
+            ['★ Best / Great', stats.p.best + '  |  ' + stats.b.best, '#7fffd4', false],
+            ['✓ Good', stats.p.good + '  |  ' + stats.b.good, '#a8e6cf', false],
+            ['?! Inaccuracies', stats.p.inacc + '  |  ' + stats.b.inacc, '#ffd54f', false],
+            ['? Mistakes', stats.p.mistake + '  |  ' + stats.b.mistake, '#ff8a65', false],
+            ['?? Blunders', stats.p.blunder + '  |  ' + stats.b.blunder, '#ff5252', false]
+        ];
+        for (var rIdx = 0; rIdx < rows.length; rIdx++) {
+            var rData = rows.at(rIdx);
+            var rowEl = document.createElement('div');
+            rowEl.style.cssText = 'display:flex; justify-content:space-between; color:' + rData.at(2) + ';' +
+                (rData.at(3) ? ' border-bottom:1px solid #3c4043; padding-bottom:3px; margin-bottom:4px; font-weight:bold;' : '');
+            var leftSpan = document.createElement('span');
+            leftSpan.innerText = rData.at(0);
+            var rightSpan = document.createElement('span');
+            rightSpan.innerText = rData.at(1);
+            rowEl.appendChild(leftSpan);
+            rowEl.appendChild(rightSpan);
+            cntBox.appendChild(rowEl);
+        }
+
+        document.getElementById('repBadge').innerText = moveHistory.length + ' plies';
+        ov.style.display = 'flex';
+    }
+
   
        function endState(cl) {
         var currentStr = JSON.stringify(bd);
