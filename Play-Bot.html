@@ -1019,7 +1019,7 @@ return score;
            var prevBotScore = 0;
     var lastTrashLine = "";
 
-          function updateTrashTalk(botScore, botColor, eventType) {
+              function updateTrashTalk(botScore, botColor, eventType) {
         var box = document.getElementById('trashTalkBox');
         var mood = document.getElementById('botMood');
         var avatar = document.getElementById('botAvatar');
@@ -1031,7 +1031,6 @@ return score;
             perspectiveScore = prevBotScore;
         }
         var swing = perspectiveScore - prevBotScore;
-        var wasCrushing = (prevBotScore >= 300);
         prevBotScore = perspectiveScore;
 
         if (evalBox) {
@@ -1045,11 +1044,12 @@ return score;
         }
 
         function pick(arr) {
-            if (arr.length === 1) return arr[0];
-            var choice = arr[Math.floor(Math.random() * arr.length)];
+            if (!arr || arr.length === 0) return '';
+            if (arr.length === 1) return arr.at(0);
+            var choice = arr.at(Math.floor(Math.random() * arr.length));
             var tries = 0;
             while (choice === lastTrashLine && tries < 8) {
-                choice = arr[Math.floor(Math.random() * arr.length)];
+                choice = arr.at(Math.floor(Math.random() * arr.length));
                 tries++;
             }
             lastTrashLine = choice;
@@ -1184,7 +1184,7 @@ return score;
         } else if (perspectiveScore >= 250) {
             avatar.innerText = '😎'; mood.innerText = 'Crushing';
             box.innerText = pick(lines.winning);
-        } else if (perspectiveScore <= -200 && !wasCrushing) {
+        } else if (perspectiveScore <= -200) {
             avatar.innerText = '😤'; mood.innerText = 'Sweating';
             box.innerText = pick(lines.losing);
         } else {
@@ -1195,9 +1195,7 @@ return score;
 
 
 
-
-
-                                                  var zobristHi = new Int32Array(781);
+    var zobristHi = new Int32Array(781);
     var zobristLo = new Int32Array(781);
     (function initZobrist() {
         var seed = 1070372;
@@ -1217,10 +1215,9 @@ return score;
         var diffSetting = document.getElementById('diff').value;
         var is3200 = (diffSetting === "3200");
 
-              var maxDepth = is3200 ? 14 : (diffSetting === "1600" ? 5 : (diffSetting === "1200" ? 4 : 2));
+        var maxDepth = is3200 ? 14 : (diffSetting === "1600" ? 5 : (diffSetting === "1200" ? 4 : 2));
         var maxQDepth = is3200 ? 8 : (diffSetting === "1600" ? 6 : (diffSetting === "1200" ? 4 : 2));
         var timeLimitMs = is3200 ? 2400 : (diffSetting === "1600" ? 350 : (diffSetting === "1200" ? 180 : 60));
-
         var startTime = Date.now();
         var timeUp = false;
 
@@ -1228,13 +1225,13 @@ return score;
         var isBotBlack = (botColor === 'B');
 
         var simBoard = [];
-        for (var r = 0; r < 8; r++) simBoard.push(bd[r].slice());
+        for (var r = 0; r < 8; r++) simBoard.push(bd.at(r).slice());
 
         var wKing = { r: 7, c: 4 }, bKing = { r: 0, c: 4 };
         for (var r = 0; r < 8; r++) {
             for (var c = 0; c < 8; c++) {
-                if (simBoard[r][c] === 'K') { wKing.r = r; wKing.c = c; }
-                else if (simBoard[r][c] === 'k') { bKing.r = r; bKing.c = c; }
+                if (simBoard.at(r).at(c) === 'K') { wKing.r = r; wKing.c = c; }
+                else if (simBoard.at(r).at(c) === 'k') { bKing.r = r; bKing.c = c; }
             }
         }
 
@@ -1407,10 +1404,10 @@ return score;
                         for (var i = 0; i < 8; i++) {
                             var nr = r + K_DR[i], nc = c + K_DC[i];
                             if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-                                var sq = b[nr][nc];
-                                if (sq === '' || enemyMap[sq]) pushMove(r, c, nr, nc, false, false);
-                            }
-                        }
+var sq = b[nr][nc];
+if (sq === '' || enemyMap[sq]) pushMove(r, c, nr, nc, false, false);
+}
+}
 if (rootMode && !capturesOnly) {
 var opp = isW ? 'B' : 'W';
 var rRow = b.at(backRank);
@@ -1512,221 +1509,189 @@ if (p === 'N' || p === 'B' || p === 'R' || p === 'Q') return true;
 }
 return false;
 }
-        function evalEnhanced(b) {
-            var s = evalBoard(b);
-            if (!is3200) return s;
-
-            var wKingShield = 0, bKingShield = 0;
-            var wHasHeavy = false, bHasHeavy = false;
-            var minorMajorCount = 0;
-            var wRookCols = [], bRookCols = [];
-            var wPawns = new Int8Array(8), bPawns = new Int8Array(8);
-            var wMinPawn = new Int8Array(8).fill(8);
-            var bMaxPawn = new Int8Array(8).fill(-1);
-
-            for (var r = 0; r < 8; r++) {
-                var row = b[r];
-                for (var c = 0; c < 8; c++) {
-                    var p = row[c];
-                    if (p === 'R' || p === 'Q') {
-                        wHasHeavy = true;
-                        minorMajorCount += (p === 'Q' ? 4 : 2);
-                        if (p === 'R') {
-                            wRookCols.push(c);
-                            if (r === 1) s -= 35;
-                        }
-                    } else if (p === 'r' || p === 'q') {
-                        bHasHeavy = true;
-                        minorMajorCount += (p === 'q' ? 4 : 2);
-                        if (p === 'r') {
-                            bRookCols.push(c);
-                            if (r === 6) s += 35;
-                        }
-                    } else if (p === 'N' || p === 'B' || p === 'n' || p === 'b') {
-                        minorMajorCount += 1;
-                    } else if (p === 'P') {
-                        wPawns[c]++;
-                        if (r < wMinPawn[c]) wMinPawn[c] = r;
-                    } else if (p === 'p') {
-                        bPawns[c]++;
-                        if (r > bMaxPawn[c]) bMaxPawn[c] = r;
-                    }
-                }
-            }
-
-            // Active endgame king centralization
-            if (minorMajorCount <= 4) {
-                var wCenterDist = Math.abs(3.5 - wKing.r) + Math.abs(3.5 - wKing.c);
-                var bCenterDist = Math.abs(3.5 - bKing.r) + Math.abs(3.5 - bKing.c);
-                var endWeight = (5 - minorMajorCount) * 8;
-                s += Math.round((wCenterDist - bCenterDist) * endWeight);
-            }
-
-            // FIXED Passed-Pawn Detection (only blocked if an enemy pawn actually exists ahead!)
-            var wPassedCols = new Int8Array(8);
-            var bPassedCols = new Int8Array(8);
-            for (var c = 0; c < 8; c++) {
-                if (wPawns[c] > 0) {
-                    var wr = wMinPawn[c];
-                    var wBlocked = (bMaxPawn[c] !== -1 && bMaxPawn[c] < wr) ||
-                                   (c > 0 && bMaxPawn[c - 1] !== -1 && bMaxPawn[c - 1] < wr) ||
-                                   (c < 7 && bMaxPawn[c + 1] !== -1 && bMaxPawn[c + 1] < wr);
-                    if (!wBlocked) {
-                        wPassedCols[c] = 1;
-                        var adv = 7 - wr;
-                        var bonus = adv * adv * 8;
-                        if (adv >= 4) bonus += 60;
-                        if (adv >= 5) bonus += 130;
-                        if (adv >= 6) bonus += 240;
-                        s -= bonus;
-                    }
-                }
-                if (bPawns[c] > 0) {
-                    var br = bMaxPawn[c];
-                    var bBlocked = (wMinPawn[c] !== 8 && wMinPawn[c] > br) ||
-                                   (c > 0 && wMinPawn[c - 1] !== 8 && wMinPawn[c - 1] > br) ||
-                                   (c < 7 && wMinPawn[c + 1] !== 8 && wMinPawn[c + 1] > br);
-                    if (!bBlocked) {
-                        bPassedCols[c] = 1;
-                        var bonus = br * br * 8;
-                        if (br >= 4) bonus += 60;
-                        if (br >= 5) bonus += 130;
-                        if (br >= 6) bonus += 240;
-                        s += bonus;
-                    }
-                }
-            }
-            for (var c = 0; c < 7; c++) {
-                if (wPassedCols[c] && wPassedCols[c + 1]) s -= 75;
-                if (bPassedCols[c] && bPassedCols[c + 1]) s += 75;
-            }
-
-            // Open & semi-open file rook control + doubled rooks
-            for (var i = 0; i < bRookCols.length; i++) {
-                var bc = bRookCols[i];
-                if (bPawns[bc] === 0) s += (wPawns[bc] === 0) ? 28 : 14;
-            }
-            for (var i = 0; i < wRookCols.length; i++) {
-                var wc = wRookCols[i];
-                if (wPawns[wc] === 0) s -= (bPawns[wc] === 0) ? 28 : 14;
-            }
-            if (bRookCols.length === 2 && bRookCols.at(0) === bRookCols.at(1) && bPawns[bRookCols.at(0)] === 0) s += 24;
-            if (wRookCols.length === 2 && wRookCols.at(0) === wRookCols.at(1) && wPawns[wRookCols.at(0)] === 0) s -= 24;
-
-            // Central pawn control
-            if (b.at(3).at(3) === 'p') s += 16;
-            if (b.at(3).at(4) === 'p') s += 16;
-            if (b.at(4).at(3) === 'P') s -= 16;
-            if (b.at(4).at(4) === 'P') s -= 16;
-
-            // King pawn shield
-            for (var dc = -1; dc <= 1; dc++) {
-                var wc = wKing.c + dc;
-                if (wc >= 0 && wc < 8 && wKing.r > 0) {
-                    if (b[wKing.r - 1][wc] === 'P') wKingShield += 16;
-                    else if (wKing.r > 1 && b[wKing.r - 2][wc] === 'P') wKingShield += 8;
-                }
-                var bc = bKing.c + dc;
-                if (bc >= 0 && bc < 8 && bKing.r < 7) {
-                    if (b[bKing.r + 1][bc] === 'p') bKingShield += 16;
-                    else if (bKing.r < 6 && b[bKing.r + 2][bc] === 'p') bKingShield += 8;
-                }
-            }
-            s += (bKingShield - wKingShield);
-
-            // Back-rank luft safety
-            if (wHasHeavy && bKing.r === 0) {
-                var bLuft = false;
-                for (var dc = -1; dc <= 1; dc++) {
-                    var kc = bKing.c + dc;
-                    if (kc >= 0 && kc < 8 && b.at(1).at(kc) === '' && !isSquareAttacked(1, kc, 'W', b)) {
-                        bLuft = true; break;
-                    }
-                }
-                if (!bLuft) s -= 52;
-            }
-            if (bHasHeavy && wKing.r === 7) {
-                var wLuft = false;
-                for (var dc = -1; dc <= 1; dc++) {
-                    var kc = wKing.c + dc;
-                    if (kc >= 0 && kc < 8 && b.at(6).at(kc) === '' && !isSquareAttacked(6, kc, 'B', b)) {
-                        wLuft = true; break;
-                    }
-                }
-                if (!wLuft) s += 52;
-            }
-
-            // Mop-up endgame king centralization
-            if (s > 350) {
-                var wDistCenter = Math.abs(3.5 - wKing.r) + Math.abs(3.5 - wKing.c);
-                var kingsDist = Math.abs(bKing.r - wKing.r) + Math.abs(bKing.c - wKing.c);
-                s += (wDistCenter * 14) + ((14 - kingsDist) * 6);
-            } else if (s < -350) {
-                var bDistCenter = Math.abs(3.5 - bKing.r) + Math.abs(3.5 - bKing.c);
-                var kingsDist = Math.abs(bKing.r - wKing.r) + Math.abs(bKing.c - wKing.c);
-                s -= (bDistCenter * 14) + ((14 - kingsDist) * 6);
-            }
-            return s;
-        }
-
-        var nodes = 0;
-        function quiesce(b, alpha, beta, isMax, qDepth) {
-            if ((++nodes & 511) === 0 && Date.now() - startTime > timeLimitMs) {
-                timeUp = true;
-                return 0;
-            }
-            var activeColor = isMax ? 'B' : 'W';
-            var enemyColor = isMax ? 'W' : 'B';
-            var myKing = isMax ? bKing : wKing;
-            var oppKing = isMax ? wKing : bKing;
-            var inCheck = isSquareAttacked(myKing.r, myKing.c, enemyColor, b);
-
-            if (!inCheck) {
-                var standPat = evalEnhanced(b);
-                if (qDepth <= 0) return standPat;
-                if (isMax) {
-                    if (standPat >= beta) return beta;
-                    if (standPat + 950 < alpha) return alpha;
-                    if (standPat > alpha) alpha = standPat;
-                } else {
-                    if (standPat <= alpha) return alpha;
-                    if (standPat - 950 > beta) return beta;
-                    if (standPat < beta) beta = standPat;
-                }
-            } else if (qDepth <= -3) {
-                return evalEnhanced(b);
-            }
-
-            // Only inspect quiet checks on the very first quiescence ply AND only when not in endgame spite-check loops
-            var searchChecks = (is3200 && !inCheck && qDepth === maxQDepth);
-            var gen = genMoves(activeColor, b, !inCheck && !searchChecks, 127, 0, false);
-            var legalCount = 0;
-            for (var i = 0; i < gen.moves.length; i++) {
-                var code = pickNextMove(gen, i);
-                var tr = (code >> 3) & 7, tc = code & 7;
-                var isCap = (b[tr][tc] !== '' || (code & 4096) !== 0);
-                if (!inCheck && !isCap && !searchChecks) break;
-                if (!inCheck && isCap && gen.scores[i] < 0) continue;
-
-                var uData = makeSimCode(b, code);
-                if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
-                    unmakeSimCode(b, code, uData);
-                    continue;
-                }
-                if (searchChecks && !isCap && !isSquareAttacked(oppKing.r, oppKing.c, activeColor, b)) {
-                    unmakeSimCode(b, code, uData);
-                    continue;
-                }
-                legalCount++;
-                // Quiet checks consume 2 qDepth plies so spite-check chains don't blow up the horizon
-                var nextQ = (!inCheck && !isCap) ? (qDepth - 2) : (qDepth - 1);
-                var score = quiesce(b, alpha, beta, !isMax, nextQ);
-                unmakeSimCode(b, code, uData);
-                if (timeUp) return 0;
-                if (isMax) {
-                    if (score >= beta) return beta;
-                    if (score > alpha) alpha = score;
-                } else {
+function evalEnhanced(b) {
+var s = evalBoard(b);
+if (!is3200) return s;
+var wKingShield = 0, bKingShield = 0;
+var wHasHeavy = false, bHasHeavy = false;
+var minorMajorCount = 0;
+var wRookCols = [], bRookCols = [];
+var wPawns = new Int8Array(8), bPawns = new Int8Array(8);
+var wMinPawn = new Int8Array(8).fill(8);
+var bMaxPawn = new Int8Array(8).fill(-1);
+for (var r = 0; r < 8; r++) {
+var row = b[r];
+for (var c = 0; c < 8; c++) {
+var p = row[c];
+if (p === 'R' || p === 'Q') {
+wHasHeavy = true;
+minorMajorCount += (p === 'Q' ? 4 : 2);
+if (p === 'R') {
+wRookCols.push(c);
+if (r === 1) s -= 35;
+}
+} else if (p === 'r' || p === 'q') {
+bHasHeavy = true;
+minorMajorCount += (p === 'q' ? 4 : 2);
+if (p === 'r') {
+bRookCols.push(c);
+if (r === 6) s += 35;
+}
+} else if (p === 'N' || p === 'B' || p === 'n' || p === 'b') {
+minorMajorCount += 1;
+} else if (p === 'P') {
+wPawns[c]++;
+if (r < wMinPawn[c]) wMinPawn[c] = r;
+} else if (p === 'p') {
+bPawns[c]++;
+if (r > bMaxPawn[c]) bMaxPawn[c] = r;
+}
+}
+}
+if (minorMajorCount <= 4) {
+var wCenterDist = Math.abs(3.5 - wKing.r) + Math.abs(3.5 - wKing.c);
+var bCenterDist = Math.abs(3.5 - bKing.r) + Math.abs(3.5 - bKing.c);
+var endWeight = (5 - minorMajorCount) * 8;
+s += Math.round((wCenterDist - bCenterDist) * endWeight);
+}
+var wPassedCols = new Int8Array(8);
+var bPassedCols = new Int8Array(8);
+for (var c = 0; c < 8; c++) {
+if (wPawns[c] > 0) {
+var wr = wMinPawn[c];
+var wBlocked = (bMaxPawn[c] !== -1 && bMaxPawn[c] < wr) ||
+(c > 0 && bMaxPawn[c - 1] !== -1 && bMaxPawn[c - 1] < wr) ||
+(c < 7 && bMaxPawn[c + 1] !== -1 && bMaxPawn[c + 1] < wr);
+if (!wBlocked) {
+wPassedCols[c] = 1;
+var adv = 7 - wr;
+var bonus = adv * adv * 8;
+if (adv >= 4) bonus += 60;
+if (adv >= 5) bonus += 130;
+if (adv >= 6) bonus += 240;
+s -= bonus;
+}
+}
+if (bPawns[c] > 0) {
+var br = bMaxPawn[c];
+var bBlocked = (wMinPawn[c] !== 8 && wMinPawn[c] > br) ||
+(c > 0 && wMinPawn[c - 1] !== 8 && wMinPawn[c - 1] > br) ||
+(c < 7 && wMinPawn[c + 1] !== 8 && wMinPawn[c + 1] > br);
+if (!bBlocked) {
+bPassedCols[c] = 1;
+var bonus = br * br * 8;
+if (br >= 4) bonus += 60;
+if (br >= 5) bonus += 130;
+if (br >= 6) bonus += 240;
+s += bonus;
+}
+}
+}
+for (var c = 0; c < 7; c++) {
+if (wPassedCols[c] && wPassedCols[c + 1]) s -= 75;
+if (bPassedCols[c] && bPassedCols[c + 1]) s += 75;
+}
+for (var i = 0; i < bRookCols.length; i++) {
+var bc = bRookCols[i];
+if (bPawns[bc] === 0) s += (wPawns[bc] === 0) ? 28 : 14;
+}
+for (var i = 0; i < wRookCols.length; i++) {
+var wc = wRookCols[i];
+if (wPawns[wc] === 0) s -= (bPawns[wc] === 0) ? 28 : 14;
+}
+if (bRookCols.length === 2 && bRookCols.at(0) === bRookCols.at(1) && bPawns[bRookCols.at(0)] === 0) s += 24;
+if (wRookCols.length === 2 && wRookCols.at(0) === wRookCols.at(1) && wPawns[wRookCols.at(0)] === 0) s -= 24;
+if (b.at(3).at(3) === 'p') s += 16;
+if (b.at(3).at(4) === 'p') s += 16;
+if (b.at(4).at(3) === 'P') s -= 16;
+if (b.at(4).at(4) === 'P') s -= 16;
+for (var dc = -1; dc <= 1; dc++) {
+var wc = wKing.c + dc;
+if (wc >= 0 && wc < 8 && wKing.r > 0) {
+if (b[wKing.r - 1][wc] === 'P') wKingShield += 16;
+else if (wKing.r > 1 && b[wKing.r - 2][wc] === 'P') wKingShield += 8;
+}
+var bc = bKing.c + dc;
+if (bc >= 0 && bc < 8 && bKing.r < 7) {
+if (b[bKing.r + 1][bc] === 'p') bKingShield += 16;
+else if (bKing.r < 6 && b[bKing.r + 2][bc] === 'p') bKingShield += 8;
+}
+}
+s += (bKingShield - wKingShield);
+if (wHasHeavy && bKing.r === 0) {
+var bLuft = false;
+for (var dc = -1; dc <= 1; dc++) {
+var kc = bKing.c + dc;
+if (kc >= 0 && kc < 8 && b.at(1).at(kc) === '' && !isSquareAttacked(1, kc, 'W', b)) {
+bLuft = true; break;
+}
+}
+if (!bLuft) s -= 52;
+}
+if (bHasHeavy && wKing.r === 7) {
+var wLuft = false;
+for (var dc = -1; dc <= 1; dc++) {
+var kc = wKing.c + dc;
+if (kc >= 0 && kc < 8 && b.at(6).at(kc) === '' && !isSquareAttacked(6, kc, 'B', b)) {
+wLuft = true; break;
+}
+}
+if (!wLuft) s += 52;
+}
+if (s > 350) {
+var wDistCenter = Math.abs(3.5 - wKing.r) + Math.abs(3.5 - wKing.c);
+var kingsDist = Math.abs(bKing.r - wKing.r) + Math.abs(bKing.c - wKing.c);
+s += (wDistCenter * 14) + ((14 - kingsDist) * 6);
+} else if (s < -350) {
+var bDistCenter = Math.abs(3.5 - bKing.r) + Math.abs(3.5 - bKing.c);
+var kingsDist = Math.abs(bKing.r - wKing.r) + Math.abs(bKing.c - wKing.c);
+s -= (bDistCenter * 14) + ((14 - kingsDist) * 6);
+}
+return s;
+}
+var nodes = 0;
+function quiesce(b, alpha, beta, isMax, qDepth) {
+if ((++nodes & 511) === 0 && Date.now() - startTime > timeLimitMs) {
+timeUp = true;
+return 0;
+}
+var activeColor = isMax ? 'B' : 'W';
+var enemyColor = isMax ? 'W' : 'B';
+var myKing = isMax ? bKing : wKing;
+var inCheck = isSquareAttacked(myKing.r, myKing.c, enemyColor, b);
+if (!inCheck) {
+var standPat = evalEnhanced(b);
+if (qDepth <= 0) return standPat;
+if (isMax) {
+if (standPat >= beta) return beta;
+if (standPat + 950 < alpha) return alpha;
+if (standPat > alpha) alpha = standPat;
+} else {
+if (standPat <= alpha) return alpha;
+if (standPat - 950 > beta) return beta;
+if (standPat < beta) beta = standPat;
+}
+} else if (qDepth <= -3) {
+return evalEnhanced(b);
+}
+var gen = genMoves(activeColor, b, !inCheck, 127, 0, false);
+var legalCount = 0;
+for (var i = 0; i < gen.moves.length; i++) {
+var code = pickNextMove(gen, i);
+if (!inCheck && gen.scores[i] < 0) break;
+var uData = makeSimCode(b, code);
+if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
+unmakeSimCode(b, code, uData);
+continue;
+}
+legalCount++;
+var score = quiesce(b, alpha, beta, !isMax, qDepth - 1);
+unmakeSimCode(b, code, uData);
+if (timeUp) return 0;
+if (isMax) {
+if (score >= beta) return beta;
+if (score > alpha) alpha = score;
+} else {
 if (score <= alpha) return alpha;
 if (score < beta) beta = score;
 }
@@ -1736,7 +1701,6 @@ return isMax ? -999999 : 999999;
 }
 return isMax ? alpha : beta;
 }
-      
 function minimax(b, depth, alpha, beta, isMax, ply, allowNull) {
 if ((++nodes & 511) === 0 && Date.now() - startTime > timeLimitMs) {
 timeUp = true;
@@ -1756,11 +1720,9 @@ var enemyColor = isMax ? 'W' : 'B';
 var myKing = isMax ? bKing : wKing;
 var oppKing = isMax ? wKing : bKing;
 var inCheck = isSquareAttacked(myKing.r, myKing.c, enemyColor, b);
-        // Inside minimax(): replace "if (is3200 && inCheck && ply < 24) { depth += 1; }" with:
-        if (is3200 && inCheck && ply < 12 && depth <= 3) {
-            depth += 1;
-        }
-
+if (is3200 && inCheck && ply < 12 && depth <= 3) {
+depth += 1;
+}
 var alphaOrig = alpha;
 var betaOrig = beta;
 var ttEntry = ttTable[key];
@@ -1830,7 +1792,6 @@ break;
 if (legalCount === 0) {
 return inCheck ? -999999 - depth : 0;
 }
-// Never cache exact 0 draw scores (prevents repetition-path TT poisoning)
 if (ttSize < 250000 && !timeUp && maxVal !== 0) {
 var flag = maxVal <= alphaOrig ? 2 : (maxVal >= betaOrig ? 1 : 0);
 if (!ttEntry) ttSize++;
@@ -2029,29 +1990,27 @@ topCodes = bestEvaluatedMoves.map(function(item) { return item.code; });
 if (bestEvaluatedMoves.length === 0) {
 bestEvaluatedMoves = [{ code: topCodes.at(0), score: evalEnhanced(simBoard) }];
 }
-        var roll = Math.random() * 100;
-        var targetIndex = 0;
-        var bestScore = bestEvaluatedMoves.at(0).score;
-        function isWithinMargin(idx, maxDrop) {
-            if (idx >= bestEvaluatedMoves.length) return false;
-            var candScore = bestEvaluatedMoves.at(idx).score;
-            var drop = isBotBlack ? (bestScore - candScore) : (candScore - bestScore);
-            return drop <= maxDrop;
-        }
-
-        if (is3200) {
-            targetIndex = 0;
-        } else if (diffSetting === "1600") {
-            if (roll > 65 && isWithinMargin(1, 75)) targetIndex = 1;
-            else if (roll > 88 && isWithinMargin(2, 95)) targetIndex = 2;
-        } else if (diffSetting === "1200") {
-            if (roll > 55 && isWithinMargin(1, 160)) targetIndex = 1;
-            else if (roll > 82 && isWithinMargin(2, 200)) targetIndex = 2;
-        } else if (diffSetting === "800") {
-            if (roll > 45 && isWithinMargin(1, 350)) targetIndex = 1;
-            else if (roll > 75 && isWithinMargin(2, 450)) targetIndex = 2;
-        }
-
+var roll = Math.random() * 100;
+var targetIndex = 0;
+var bestScore = bestEvaluatedMoves.at(0).score;
+function isWithinMargin(idx, maxDrop) {
+if (idx >= bestEvaluatedMoves.length) return false;
+var candScore = bestEvaluatedMoves.at(idx).score;
+var drop = isBotBlack ? (bestScore - candScore) : (candScore - bestScore);
+return drop <= maxDrop;
+}
+if (is3200) {
+targetIndex = 0;
+} else if (diffSetting === "1600") {
+if (roll > 65 && isWithinMargin(1, 75)) targetIndex = 1;
+else if (roll > 88 && isWithinMargin(2, 95)) targetIndex = 2;
+} else if (diffSetting === "1200") {
+if (roll > 55 && isWithinMargin(1, 160)) targetIndex = 1;
+else if (roll > 82 && isWithinMargin(2, 200)) targetIndex = 2;
+} else if (diffSetting === "800") {
+if (roll > 45 && isWithinMargin(1, 350)) targetIndex = 1;
+else if (roll > 75 && isWithinMargin(2, 450)) targetIndex = 2;
+}
 var chosenEntry = bestEvaluatedMoves.at(targetIndex);
 var chosenCode = chosenEntry.code;
 var rawBotScore = chosenEntry.score;
@@ -2125,8 +2084,6 @@ evalBox.innerText += ' (d' + completedDepth + ' | ' + Math.round(nodes / 1000) +
 }
 draw();
 }
-  
-  
   
   
   
