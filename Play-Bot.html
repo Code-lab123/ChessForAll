@@ -1193,7 +1193,7 @@ return score;
 
 
 
-                                          var zobristHi = new Int32Array(781);
+                                            var zobristHi = new Int32Array(781);
     var zobristLo = new Int32Array(781);
     (function initZobrist() {
         var seed = 1070372;
@@ -1204,10 +1204,11 @@ return score;
             return seed | 0;
         }
         for (var i = 0; i < 781; i++) {
-            zobristHi[i] = rand32();
-            zobristLo[i] = rand32();
+            zobristHi.set([rand32()], i);
+            zobristLo.set([rand32()], i);
         }
     })();
+
 
     function bot() {
         var diffSetting = document.getElementById('diff').value;
@@ -1240,7 +1241,7 @@ return score;
         var pieceHashMap = { 'P':0, 'N':1, 'B':2, 'R':3, 'Q':4, 'K':5, 'p':6, 'n':7, 'b':8, 'r':9, 'q':10, 'k':11 };
         function computeHash(b, isMax) {
             var hi = isMax ? zobristHi.at(768) : 0;
-var lo = isMax ? zobristLo.at(768) : 0;
+            var lo = isMax ? zobristLo.at(768) : 0;
 
             for (var r = 0; r < 8; r++) {
                 var row = b[r];
@@ -1894,11 +1895,14 @@ for (var bIdx = 0; bIdx < bookMoves.length; bIdx++) {
 if (topCodes.indexOf(bookMoves[bIdx]) !== -1) validBookCodes.push(bookMoves[bIdx]);
 }
 var chosenBookCode = validBookCodes.length > 0 ? validBookCodes[Math.floor(Math.random() * validBookCodes.length)] : 0;
-var bestEvaluatedMoves = [];
-var completedDepth = 0;
-if (is3200 && chosenBookCode !== 0 && moveHistory.length <= 3) {
-bestEvaluatedMoves = [{ code: chosenBookCode, score: evalEnhanced(simBoard) }];
-} else {
+        var bestEvaluatedMoves = [];
+        var completedDepth = 0;
+
+        if (is3200 && chosenBookCode !== 0 && moveHistory.length <= 3) {
+            bestEvaluatedMoves = [{ code: chosenBookCode, score: evalEnhanced(simBoard) }];
+            completedDepth = 1;
+        } else {
+
 searchPathKeys.splice(0, 1, computeHash(simBoard, isBotBlack));
 var lastIterScore = evalEnhanced(simBoard);
 for (var d = 1; d <= maxDepth; d++) {
