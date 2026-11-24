@@ -1019,7 +1019,7 @@ return score;
            var prevBotScore = 0;
     var lastTrashLine = "";
 
-       function updateTrashTalk(botScore, botColor, eventType) {
+          function updateTrashTalk(botScore, botColor, eventType) {
         var box = document.getElementById('trashTalkBox');
         var mood = document.getElementById('botMood');
         var avatar = document.getElementById('botAvatar');
@@ -1027,6 +1027,9 @@ return score;
         if (!box) return;
 
         var perspectiveScore = (botColor === 'B') ? botScore : -botScore;
+        if (Math.abs(botScore) < 5 && moveHistory.length > 10) {
+            perspectiveScore = prevBotScore;
+        }
         var swing = perspectiveScore - prevBotScore;
         var wasCrushing = (prevBotScore >= 300);
         prevBotScore = perspectiveScore;
@@ -1163,25 +1166,25 @@ return score;
         } else if (perspectiveScore > 90000) {
             avatar.innerText = '😈'; mood.innerText = 'Smelling Checkmate';
             box.innerText = pick(lines.forcedMate);
-        } else if (eventType === 'promote') {
+        } else if (eventType === 'promote' && perspectiveScore > -150) {
             avatar.innerText = '👸'; mood.innerText = 'Promoted';
             box.innerText = pick(lines.promote);
-        } else if (eventType === 'sacrifice') {
+        } else if (eventType === 'sacrifice' && perspectiveScore > 150) {
             avatar.innerText = '🧠'; mood.innerText = 'Calculated Sacrifice';
             box.innerText = pick(lines.sacrifice);
-        } else if (swing >= 180) {
+        } else if (swing >= 180 && perspectiveScore > -100) {
             avatar.innerText = '😂'; mood.innerText = 'Laughing at Blunder';
             box.innerText = pick(lines.blunder);
-        } else if (eventType === 'check') {
+        } else if (eventType === 'check' && perspectiveScore > -250) {
             avatar.innerText = '⚡'; mood.innerText = 'Attacking';
             box.innerText = pick(lines.check);
-        } else if (eventType === 'capture') {
+        } else if (eventType === 'capture' && perspectiveScore > -250) {
             avatar.innerText = '🦈'; mood.innerText = 'Hunting Material';
             box.innerText = pick(lines.capture);
         } else if (perspectiveScore >= 250) {
             avatar.innerText = '😎'; mood.innerText = 'Crushing';
             box.innerText = pick(lines.winning);
-        } else if (perspectiveScore <= -300 && !wasCrushing) {
+        } else if (perspectiveScore <= -200 && !wasCrushing) {
             avatar.innerText = '😤'; mood.innerText = 'Sweating';
             box.innerText = pick(lines.losing);
         } else {
@@ -1189,6 +1192,7 @@ return score;
             box.innerText = pick(lines.normal);
         }
     }
+
 
 
 
@@ -1752,9 +1756,11 @@ var enemyColor = isMax ? 'W' : 'B';
 var myKing = isMax ? bKing : wKing;
 var oppKing = isMax ? wKing : bKing;
 var inCheck = isSquareAttacked(myKing.r, myKing.c, enemyColor, b);
-if (is3200 && inCheck && ply < 24) {
-depth += 1;
-}
+        // Inside minimax(): replace "if (is3200 && inCheck && ply < 24) { depth += 1; }" with:
+        if (is3200 && inCheck && ply < 12 && depth <= 3) {
+            depth += 1;
+        }
+
 var alphaOrig = alpha;
 var betaOrig = beta;
 var ttEntry = ttTable[key];
