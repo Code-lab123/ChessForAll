@@ -2301,14 +2301,16 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             return (sum / losses.length).toFixed(1);
         }
 
-        function calcPerfRating(accStr, outcome, baseRating, blunderCount, moveCount) {
+                function calcPerfRating(accStr, outcome, baseRating, blunderCount, moveCount) {
             var acc = parseFloat(accStr);
-            var accPerf = 350 + Math.pow(acc / 100, 2.8) * 2050;
-            var blunderPenalty = moveCount > 0 ? (blunderCount / moveCount) * 650 : 0;
-            var resultShift = (outcome === 1 ? 150 : (outcome === 0.5 ? 0 : -150));
+            var accPerf = 450 + Math.pow(acc / 100, 2.3) * 2100;
+            var denom = Math.max(moveCount, 22);
+            var blunderPenalty = (blunderCount / denom) * 500;
+            var resultShift = (outcome === 1 ? 180 : (outcome === 0.5 ? 0 : -180));
             var rawRating = (accPerf * 0.65) + ((baseRating + resultShift) * 0.35) - blunderPenalty;
             return Math.max(400, Math.min(2850, Math.round(rawRating / 10) * 10));
         }
+
 
         var pAcc = calcAccuracy(pLoss);
         var bAcc = calcAccuracy(bLoss);
