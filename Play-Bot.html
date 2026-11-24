@@ -1678,7 +1678,7 @@ var gen = genMoves(activeColor, b, !inCheck, 127, 0, false);
 var legalCount = 0;
 for (var i = 0; i < gen.moves.length; i++) {
 var code = pickNextMove(gen, i);
-if (!inCheck && gen.scores[i] < 0) continue;
+
 var uData = makeSimCode(b, code);
 if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
 unmakeSimCode(b, code, uData);
