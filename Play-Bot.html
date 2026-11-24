@@ -100,9 +100,7 @@
 
 
 <script>
-      window.onerror = function(msg, src, line, col) {
-        alert('Error on line ' + line + ': ' + msg);
-    };
+     
 
     var start = [
         ["r","n","b","q","k","b","n","r"],
@@ -2658,23 +2656,24 @@ ov.style.display = 'flex';
         renderMoveList(); endState(playerColor); draw();
     }
 
-        function updateActionBtn() {
+            function updateActionBtn() {
         var btn = document.getElementById('resignOrRestartBtn');
         if (!btn) return;
-        if (gameOver || moveHistory.length === 0) {
+        var isOver = (typeof gameResult !== 'undefined' && gameResult !== '' && gameResult !== '*');
+        if (isOver || moveHistory.length === 0) {
             btn.innerText = 'Restart Game';
-            btn.style.background = '#2b2b36';
+            btn.style.backgroundColor = '#007acc';
         } else {
             btn.innerText = 'Resign';
-            btn.style.background = '#b71c1c';
+            btn.style.backgroundColor = '#b71c1c';
         }
     }
 
     function handleResignOrRestart() {
-        if (!gameOver && moveHistory.length > 0) {
+        var isOver = (typeof gameResult !== 'undefined' && gameResult !== '' && gameResult !== '*');
+        if (!isOver && moveHistory.length > 0) {
             var pColor = document.getElementById('pColor').value;
             var botColor = (pColor === 'W') ? 'B' : 'W';
-            gameOver = true;
             gameResult = (pColor === 'W') ? '0-1' : '1-0';
             document.getElementById('msg').innerText = 'You Resigned — Bot Wins';
             updateTrashTalk(botColor === 'B' ? 999999 : -999999, botColor, 'mateWin');
