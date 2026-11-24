@@ -100,6 +100,10 @@
 
 
 <script>
+      window.onerror = function(msg, src, line, col) {
+        alert('Error on line ' + line + ': ' + msg);
+    };
+
     var start = [
         ["r","n","b","q","k","b","n","r"],
         ["p","p","p","p","p","p","p","p"],
@@ -2654,7 +2658,7 @@ ov.style.display = 'flex';
         renderMoveList(); endState(playerColor); draw();
     }
 
-    function updateActionBtn() {
+        function updateActionBtn() {
         var btn = document.getElementById('resignOrRestartBtn');
         if (!btn) return;
         if (gameOver || moveHistory.length === 0) {
