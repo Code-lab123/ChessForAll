@@ -1195,7 +1195,7 @@ return score;
 
 
 
-    var zobristHi = new Int32Array(781);
+      var zobristHi = new Int32Array(781);
     var zobristLo = new Int32Array(781);
     (function initZobrist() {
         var seed = 1070372;
@@ -1255,7 +1255,7 @@ return score;
                     }
                 }
             }
-            return (hi >>> 0) * 4294967296 + (lo >>> 0);
+            return (hi >>> 0).toString(36) + '_' + (lo >>> 0).toString(36);
         }
 
         var gameRepHistory = Object.create(null);
@@ -1265,7 +1265,7 @@ return score;
             var hKey = computeHash(hBoard, h % 2 === 1);
             gameRepHistory[hKey] = (gameRepHistory[hKey] || 0) + 1;
         }
-        var searchPathKeys = new Float64Array(128);
+        var searchPathKeys = new Array(128);
 
         var ttTable = Object.create(null);
         var ttSize = 0;
@@ -1404,8 +1404,8 @@ return score;
                         for (var i = 0; i < 8; i++) {
                             var nr = r + K_DR[i], nc = c + K_DC[i];
                             if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-var sq = b[nr][nc];
-if (sq === '' || enemyMap[sq]) pushMove(r, c, nr, nc, false, false);
+                                var sq = b[nr][nc];
+                                if (sq === '' || enemyMap[sq]) pushMove(r, c, nr, nc, false, false);
 }
 }
 if (rootMode && !capturesOnly) {
@@ -1678,7 +1678,7 @@ var gen = genMoves(activeColor, b, !inCheck, 127, 0, false);
 var legalCount = 0;
 for (var i = 0; i < gen.moves.length; i++) {
 var code = pickNextMove(gen, i);
-if (!inCheck && gen.scores[i] < 0) break;
+if (!inCheck && gen.scores[i] < 0) continue;
 var uData = makeSimCode(b, code);
 if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
 unmakeSimCode(b, code, uData);
@@ -1737,8 +1737,7 @@ if (alpha >= beta) return ttEntry.score;
 }
 }
 if (depth <= 0) return quiesce(b, alpha, beta, isMax, maxQDepth);
-            if (is3200 && allowNull && !inCheck && depth >= 3 && ply > 1 && hasNonPawnMaterial(b, isMax)) {
-
+if (is3200 && allowNull && !inCheck && depth >= 3 && ply > 1 && hasNonPawnMaterial(b, isMax)) {
 var R = depth >= 6 ? 3 : 2;
 var nullScore = isMax
 ? minimax(b, depth - 1 - R, beta - 1, beta, false, ply + 1, false)
@@ -1920,7 +1919,7 @@ if (is3200 && chosenBookCode !== 0 && moveHistory.length <= 5) {
 bestEvaluatedMoves = [{ code: chosenBookCode, score: evalEnhanced(simBoard) }];
 completedDepth = 1;
 } else {
-searchPathKeys.set([computeHash(simBoard, isBotBlack)], 0);
+searchPathKeys.splice(0, 1, computeHash(simBoard, isBotBlack));
 var lastIterScore = evalEnhanced(simBoard);
 for (var d = 1; d <= maxDepth; d++) {
 var currentDepthMoves = [];
@@ -2085,7 +2084,6 @@ evalBox.innerText += ' (d' + completedDepth + ' | ' + Math.round(nodes / 1000) +
 }
 draw();
 }
-  
   
   
 function handlePromoSelection(pieceType) {
