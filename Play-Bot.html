@@ -2482,8 +2482,10 @@ var playerAnchorElo = diffVal === '3200' ? 2100 : botNominalElo;
 var pOutcome = 0.5, bOutcome = 0.5;
 if (gameResult === '1-0') { pOutcome = pIsWhite ? 1 : 0; bOutcome = pIsWhite ? 0 : 1; }
 else if (gameResult === '0-1') { pOutcome = pIsWhite ? 0 : 1; bOutcome = pIsWhite ? 1 : 0; }
-var pElo = calcChessComGameRating(pAcc, pOutcome, botNominalElo, stats.p.blunder, stats.p.mistake, pMoveAccs.length);
-var bElo = calcChessComGameRating(bAcc, bOutcome, playerAnchorElo, stats.b.blunder, stats.b.mistake, bMoveAccs.length);
+        var isTooShort = (moveHistory.length < 8 && titleText.indexOf('Checkmate') === -1);
+        var pElo = isTooShort ? '—' : calcChessComGameRating(pAcc, pOutcome, botNominalElo, stats.p.blunder, stats.p.mistake, pMoveAccs.length);
+        var bElo = isTooShort ? '—' : calcChessComGameRating(bAcc, bOutcome, playerAnchorElo, stats.b.blunder, stats.b.mistake, bMoveAccs.length);
+
 document.getElementById('repTitle').innerText = titleText;
 var sumBox = document.getElementById('repSummary');
 sumBox.innerHTML = '';
