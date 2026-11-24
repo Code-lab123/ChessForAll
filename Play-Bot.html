@@ -423,17 +423,18 @@ var bMaxPawnRow = new Array(8).fill(-1);
                                (c < 7 && wMinPawnRow[c + 1] > bMaxPawnRow[c]);
                 if (!bBlocked) score += (bMaxPawnRow[c] * bMaxPawnRow[c]) * 3.2;
             }
-            if (wPawnCols[c] > 0) {
+                        if (wPawnCols[c] > 0) {
                 var wIso = (c === 0 || wPawnCols[c - 1] === 0) && (c === 7 || wPawnCols[c + 1] === 0);
                 if (wIso) score += 15;
-                var wBlocked = (bMaxPawnRow[c] < wMinPawnRow[c]) ||
-                               (c > 0 && bMaxPawnRow[c - 1] < wMinPawnRow[c]) ||
-                               (c < 7 && bMaxPawnRow[c + 1] < wMinPawnRow[c]);
+                var wBlocked = (bMaxPawnRow[c] !== -1 && bMaxPawnRow[c] < wMinPawnRow[c]) ||
+                               (c > 0 && bMaxPawnRow[c - 1] !== -1 && bMaxPawnRow[c - 1] < wMinPawnRow[c]) ||
+                               (c < 7 && bMaxPawnRow[c + 1] !== -1 && bMaxPawnRow[c + 1] < wMinPawnRow[c]);
                 if (!wBlocked) {
                     var adv = 7 - wMinPawnRow[c];
                     score -= (adv * adv) * 3.2;
                 }
             }
+
         }
 
         var clampedPhase = phase > 24 ? 24 : phase;
@@ -2463,8 +2464,9 @@ ov.style.display = 'flex';
                 sel = null; moves = []; turn = playerColor;
         if (document.getElementById('reportOverlay')) document.getElementById('reportOverlay').style.display = 'none';
         if (document.getElementById('toggleRepBtn')) document.getElementById('toggleRepBtn').style.display = 'none';
-      prevBotScore = 0;
-        updateTrashTalk(-prevBotScore, playerColor === 'W' ? 'B' : 'W', 'undo');
+              prevBotScore = 0;
+        updateTrashTalk(0, playerColor === 'W' ? 'B' : 'W', 'undo');
+
         renderMoveList(); endState(playerColor); draw();
     }
 
