@@ -1903,7 +1903,8 @@ var chosenBookCode = validBookCodes.length > 0 ? validBookCodes[Math.floor(Math.
             completedDepth = 1;
         } else {
 
-searchPathKeys.splice(0, 1, computeHash(simBoard, isBotBlack));
+searchPathKeys.set([computeHash(simBoard, isBotBlack)], 0);
+
 var lastIterScore = evalEnhanced(simBoard);
 for (var d = 1; d <= maxDepth; d++) {
 var currentDepthMoves = [];
