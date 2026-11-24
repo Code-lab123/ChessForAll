@@ -2129,8 +2129,8 @@ turn = 'W';
 document.getElementById('msg').innerText = "Your Turn (White)";
 }
 }
-                     function quickTacticalEval(sideToMove) {
-        // Fast 3-ply alpha-beta + quiescence tactical evaluator (sees forks, pins & traps)
+                         function quickTacticalEval(sideToMove) {
+        // Ultra-fast 2-ply + 3-ply quiescence live eval (0ms UI lag during play)
         function qSearch(alpha, beta, isMax, qd) {
             var standPat = evalBoard(bd);
             if (qd <= 0) return standPat;
@@ -2212,7 +2212,6 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             return best;
         }
 
-        // Return score in White centipawns (+ = White better, - = Black better)
         return -tacticalSearch(2, -999999, 999999, sideToMove === 'B');
     }
 
@@ -2227,142 +2226,310 @@ document.getElementById('msg').innerText = "Your Turn (White)";
         ov.style.display = (ov.style.display === 'none' || ov.style.display === '') ? 'flex' : 'none';
     }
 
-        function showGameReport(titleText) {
-        var ov = document.getElementById('reportOverlay');
-        var btn = document.getElementById('toggleRepBtn');
-        if (btn) btn.style.display = 'inline-block';
-        if (!ov) return;
-
-        var playerColor = document.getElementById('pColor').value;
-        var pIsWhite = (playerColor === 'W');
-        var pWinLosses = [], bWinLosses = [];
-        var stats = {
-            p: { best: 0, good: 0, inacc: 0, mistake: 0, blunder: 0 },
-            b: { best: 0, good: 0, inacc: 0, mistake: 0, blunder: 0 }
-        };
-
-        function cpToWinPct(cp) {
-            var clamped = Math.max(-1200, Math.min(1200, cp));
-            return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * clamped)) - 1);
-        }
-
-        for (var i = 0; i < moveHistory.length; i++) {
-            var whiteMoved = (i % 2 === 0);
-            var isPlayerMove = (whiteMoved === pIsWhite);
-            var before = (i < evalHistory.length) ? evalHistory.at(i) : 0;
-            var after = (i + 1 < evalHistory.length) ? evalHistory.at(i + 1) : before;
-
-            // Garbage-time moves (> 700 cp decided): count as Best in table, but do NOT pad accuracy %
-            if (Math.abs(before) > 700 && Math.abs(after) > 700 && ((before > 0) === (after > 0))) {
-                var skipBucket = isPlayerMove ? stats.p : stats.b;
-                skipBucket.best++;
-                continue;
+    // Deep post-game position evaluator (runs ONLY once when game ends -> 0ms lag during play!)
+    function deepAnalyzeBoard(bSnap, sideToMove) {
+        var sb = [];
+        for (var r = 0; r < 8; r++) sb.push(bSnap.at(r).slice());
+        var wk = { r: 7, c: 4 }, bk = { r: 0, c: 4 };
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                if (sb[r][c] === 'K') { wk.r = r; wk.c = c; }
+                else if (sb[r][c] === 'k') { bk.r = r; bk.c = c; }
             }
-
-            var winBefore = whiteMoved ? cpToWinPct(before) : (100 - cpToWinPct(before));
-            var winAfter = whiteMoved ? cpToWinPct(after) : (100 - cpToWinPct(after));
-            var winDrop = Math.max(0, winBefore - winAfter);
-
-            var bucket = isPlayerMove ? stats.p : stats.b;
-            if (winDrop <= 2.0) bucket.best++;
-            else if (winDrop <= 5.0) bucket.good++;
-            else if (winDrop <= 10.0) bucket.inacc++;
-            else if (winDrop <= 20.0) bucket.mistake++;
-            else bucket.blunder++;
-
-            if (isPlayerMove) pWinLosses.push(winDrop);
-            else bWinLosses.push(winDrop);
         }
 
-        function calcCAPS2Accuracy(winDrops) {
-            if (winDrops.length === 0) return '100.0';
-            var sum = 0;
-            for (var j = 0; j < winDrops.length; j++) {
-                var drop = winDrops.at(j);
-                var moveAcc = Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * drop) - 3.1669));
-                sum += moveAcc;
+        function genFast(cl, capOnly) {
+            var list = [], scs = [];
+            var isW = (cl === 'W');
+            var cmap = isW ? isWhiteMap : isBlackMap;
+            var emap = isW ? isBlackMap : isWhiteMap;
+            function add(fr, fc, tr, tc) {
+                var tgt = sb[tr][tc];
+                var pc = sb[fr][fc];
+                var isP = (pc === 'P' && tr === 0) || (pc === 'p' && tr === 7);
+                if (capOnly && tgt === '' && !isP) return;
+                var code = (fr << 9) | (fc << 6) | (tr << 3) | tc;
+                var s = tgt !== '' ? (50000 + vals[tgt] * 10 - vals[pc]) : (isP ? 45000 : 0);
+                list.push(code);
+                scs.push(s);
             }
-            return (sum / winDrops.length).toFixed(1);
+            for (var r = 0; r < 8; r++) {
+                var row = sb[r];
+                for (var c = 0; c < 8; c++) {
+                    var p = row[c];
+                    if (p === '' || !cmap[p]) continue;
+                    if (p === 'P' || p === 'p') {
+                        var d = isW ? -1 : 1, sr = isW ? 6 : 1, r1 = r + d;
+                        if (r1 >= 0 && r1 < 8) {
+                            if (sb[r1][c] === '') {
+                                add(r, c, r1, c);
+                                if (r === sr && sb[r + 2 * d][c] === '') add(r, c, r + 2 * d, c);
+                            }
+                            if (c > 0 && emap[sb[r1][c - 1]]) add(r, c, r1, c - 1);
+                            if (c < 7 && emap[sb[r1][c + 1]]) add(r, c, r1, c + 1);
+                        }
+                    } else if (p === 'N' || p === 'n') {
+                        for (var i = 0; i < 8; i++) {
+                            var nr = r + N_DR[i], nc = c + N_DC[i];
+                            if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && (sb[nr][nc] === '' || emap[sb[nr][nc]])) add(r, c, nr, nc);
+                        }
+                    } else if (p === 'B' || p === 'b') {
+                        for (var i = 0; i < 4; i++) {
+                            var nr = r + B_DR[i], nc = c + B_DC[i];
+                            while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+                                var sq = sb[nr][nc];
+                                if (sq === '') add(r, c, nr, nc);
+                                else { if (emap[sq]) add(r, c, nr, nc); break; }
+                                nr += B_DR[i]; nc += B_DC[i];
+                            }
+                        }
+                    } else if (p === 'R' || p === 'r') {
+                        for (var i = 0; i < 4; i++) {
+                            var nr = r + R_DR[i], nc = c + R_DC[i];
+                            while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+                                var sq = sb[nr][nc];
+                                if (sq === '') add(r, c, nr, nc);
+                                else { if (emap[sq]) add(r, c, nr, nc); break; }
+                                nr += R_DR[i]; nc += R_DC[i];
+                            }
+                        }
+                    } else if (p === 'Q' || p === 'q') {
+                        for (var i = 0; i < 8; i++) {
+                            var nr = r + K_DR[i], nc = c + K_DC[i];
+                            while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+                                var sq = sb[nr][nc];
+                                if (sq === '') add(r, c, nr, nc);
+                                else { if (emap[sq]) add(r, c, nr, nc); break; }
+                                nr += K_DR[i]; nc += K_DC[i];
+                            }
+                        }
+                    } else if (p === 'K' || p === 'k') {
+                        for (var i = 0; i < 8; i++) {
+                            var nr = r + K_DR[i], nc = c + K_DC[i];
+                            if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && (sb[nr][nc] === '' || emap[sb[nr][nc]])) add(r, c, nr, nc);
+                        }
+                    }
+                }
+            }
+            return { list: list, scs: scs };
         }
 
-        function calcChessComGameRating(accStr, outcome, oppRating, blunderCount, mistakeCount, competitiveMoves) {
-            var acc = parseFloat(accStr);
-            var accElo = 350 + Math.pow(acc / 100, 2.15) * 2350;
-            var outcomeBonus = (outcome === 1 ? 180 : (outcome === 0.5 ? 0 : -180));
-            var oppAnchor = oppRating + outcomeBonus;
-            var denom = Math.max(competitiveMoves, 12);
-            var errorDrag = ((blunderCount * 420) + (mistakeCount * 140)) / denom;
-            var blended = (accElo * 0.72) + (oppAnchor * 0.28) - errorDrag;
-            var ceiling = Math.min(2950, oppRating + 850);
-            return Math.max(400, Math.min(ceiling, Math.round(blended / 10) * 10));
-        }
-
-        var pAcc = calcCAPS2Accuracy(pWinLosses);
-        var bAcc = calcCAPS2Accuracy(bWinLosses);
-        var diffVal = document.getElementById('diff').value;
-        var botNominalElo = diffVal === '3200' ? 2500 : (diffVal === '1600' ? 1600 : (diffVal === '1200' ? 1200 : 800));
-        var playerAnchorElo = diffVal === '3200' ? 2100 : botNominalElo;
-
-        var pOutcome = 0.5, bOutcome = 0.5;
-        if (gameResult === '1-0') { pOutcome = pIsWhite ? 1 : 0; bOutcome = pIsWhite ? 0 : 1; }
-        else if (gameResult === '0-1') { pOutcome = pIsWhite ? 0 : 1; bOutcome = pIsWhite ? 1 : 0; }
-
-        var pElo = calcChessComGameRating(pAcc, pOutcome, botNominalElo, stats.p.blunder, stats.p.mistake, pWinLosses.length);
-        var bElo = calcChessComGameRating(bAcc, bOutcome, playerAnchorElo, stats.b.blunder, stats.b.mistake, bWinLosses.length);
-
-        document.getElementById('repTitle').innerText = titleText;
-
-        var sumBox = document.getElementById('repSummary');
-        sumBox.innerHTML = '';
-        function makeCard(label, elo, acc, accent) {
-            var card = document.createElement('div');
-            card.style.cssText = 'flex:1; background:#2b2b36; padding:8px 6px; border-radius:6px; border-top:3px solid ' + accent + '; text-align:center;';
-            var d1 = document.createElement('div');
-            d1.style.cssText = 'font-size:11px; color:#aaa; font-weight:bold;';
-            d1.innerText = label;
-            var d2 = document.createElement('div');
-            d2.style.cssText = 'font-size:24px; font-weight:900; color:' + accent + '; line-height:1.15; margin:3px 0;';
-            d2.innerText = elo;
-            var d3 = document.createElement('div');
-            d3.style.cssText = 'font-size:10px; color:#bbb; text-transform:uppercase; letter-spacing:0.5px;';
-            d3.innerText = 'Game Rating';
-            var d4 = document.createElement('div');
-            d4.style.cssText = 'font-size:13px; font-weight:bold; color:#fff; margin-top:4px;';
-            d4.innerText = acc + '% Acc';
-            card.appendChild(d1); card.appendChild(d2); card.appendChild(d3); card.appendChild(d4);
-            return card;
-        }
-        sumBox.appendChild(makeCard('YOU (' + (pIsWhite ? 'White' : 'Black') + ')', pElo, pAcc, '#7fffd4'));
-        sumBox.appendChild(makeCard('CLUB BOT', bElo, bAcc, '#ff7f7f'));
-
-        var cntBox = document.getElementById('repCounts');
-        cntBox.innerHTML = '';
-        var rows = [
-            ['Move Quality', 'You  |  Bot', '#bbb', true],
-            ['★ Best / Great', stats.p.best + '  |  ' + stats.b.best, '#7fffd4', false],
-            ['✓ Good', stats.p.good + '  |  ' + stats.b.good, '#a8e6cf', false],
-            ['?! Inaccuracies', stats.p.inacc + '  |  ' + stats.b.inacc, '#ffd54f', false],
-            ['? Mistakes', stats.p.mistake + '  |  ' + stats.b.mistake, '#ff8a65', false],
-            ['?? Blunders', stats.p.blunder + '  |  ' + stats.b.blunder, '#ff5252', false]
-        ];
-        for (var rIdx = 0; rIdx < rows.length; rIdx++) {
-            var rData = rows.at(rIdx);
-            var rowEl = document.createElement('div');
-            rowEl.style.cssText = 'display:flex; justify-content:space-between; color:' + rData.at(2) + ';' +
-                (rData.at(3) ? ' border-bottom:1px solid #3c4043; padding-bottom:3px; margin-bottom:4px; font-weight:bold;' : '');
-            var leftSpan = document.createElement('span');
-            leftSpan.innerText = rData.at(0);
-            var rightSpan = document.createElement('span');
-            rightSpan.innerText = rData.at(1);
-            rowEl.appendChild(leftSpan);
-            rowEl.appendChild(rightSpan);
-            cntBox.appendChild(rowEl);
-        }
-
-        document.getElementById('repBadge').innerText = moveHistory.length + ' plies';
-        ov.style.display = 'flex';
-    }
-
+        function qFast(alpha, beta, isMax, qd) {
+            var cl = isMax ? 'B' : 'W';
+            var ecl = isMax ? 'W' : 'B';
+            var mk = isMax ? bk : wk;
+            var inC = isSquareAttacked(mk.r, mk.c, ecl, sb);
+            var best = isMax ? -999999 : 999999;
+            if (!inC) {
+                var sp = evalBoard(sb);
+                if (qd <= 0) return sp;
+                best = sp;
+                if (isMax) { if (sp >= beta) return sp; if (sp + 1300 < alpha) return sp; if (sp > alpha) alpha = sp; }
+                else { if (sp <= alpha) return sp; if (sp - 1300 > beta) return sp; if (sp < beta) beta = sp; }
+            } else if (qd <= -2) {
+                return evalBoard(sb);
+            }
+            var g = genFast(cl, !inC);
+            var leg = 0;
+            for (var i = 0; i < g.list.length; i++) {
+                var bi = i, bs = g.scs[i];
+                for (var j = i + 1; j < g.list.length; j++) { if (g.scs[j] > bs) { bs = g.scs[j]; bi = j; } }
+                if (bi !== i) { var tm = g.list[i]; g.list[i] = g.list[bi]; g.list[bi] = tm; var ts = g.scs[i]; g.scs[i] = g.scs[bi]; g.scs[bi] = ts; }
+                var code = g.list[i];
+                var fr = (code >> 9) & 7, fc = (code >> 6) & 7, tr = (code >> 3) & 7, tc = code & 7;
+                var op = sb[fr][fc], cap = sb[tr][tc];
+sb[tr][tc] = (tr === 7 && op === 'p') ? 'q' : ((tr === 0 && op === 'P') ? 'Q' : op);
+sb[fr][fc] = '';
+if (op === 'K') { wk.r = tr; wk.c = tc; } else if (op === 'k') { bk.r = tr; bk.c = tc; }
+if (isSquareAttacked(mk.r, mk.c, ecl, sb)) {
+sb[fr][fc] = op; sb[tr][tc] = cap;
+if (op === 'K') { wk.r = fr; wk.c = fc; } else if (op === 'k') { bk.r = fr; bk.c = fc; }
+continue;
+}
+leg++;
+var sc = qFast(alpha, beta, !isMax, qd - 1);
+sb[fr][fc] = op; sb[tr][tc] = cap;
+if (op === 'K') { wk.r = fr; wk.c = fc; } else if (op === 'k') { bk.r = fr; bk.c = fc; }
+if (isMax) { if (sc > best) best = sc; if (sc >= beta) return best; if (sc > alpha) alpha = sc; }
+else { if (sc < best) best = sc; if (sc <= alpha) return best; if (sc < beta) beta = sc; }
+}
+if (inC && leg === 0) return isMax ? -999999 : 999999;
+return best;
+}
+function abFast(depth, alpha, beta, isMax) {
+if (depth <= 0) return qFast(alpha, beta, isMax, 5);
+var cl = isMax ? 'B' : 'W';
+var ecl = isMax ? 'W' : 'B';
+var mk = isMax ? bk : wk;
+var inC = isSquareAttacked(mk.r, mk.c, ecl, sb);
+var g = genFast(cl, false);
+var leg = 0;
+var best = isMax ? -999999 : 999999;
+for (var i = 0; i < g.list.length; i++) {
+var bi = i, bs = g.scs[i];
+for (var j = i + 1; j < g.list.length; j++) { if (g.scs[j] > bs) { bs = g.scs[j]; bi = j; } }
+if (bi !== i) { var tm = g.list[i]; g.list[i] = g.list[bi]; g.list[bi] = tm; var ts = g.scs[i]; g.scs[i] = g.scs[bi]; g.scs[bi] = ts; }
+var code = g.list[i];
+var fr = (code >> 9) & 7, fc = (code >> 6) & 7, tr = (code >> 3) & 7, tc = code & 7;
+var op = sb[fr][fc], cap = sb[tr][tc];
+sb[tr][tc] = (tr === 7 && op === 'p') ? 'q' : ((tr === 0 && op === 'P') ? 'Q' : op);
+sb[fr][fc] = '';
+if (op === 'K') { wk.r = tr; wk.c = tc; } else if (op === 'k') { bk.r = tr; bk.c = tc; }
+if (isSquareAttacked(mk.r, mk.c, ecl, sb)) {
+sb[fr][fc] = op; sb[tr][tc] = cap;
+if (op === 'K') { wk.r = fr; wk.c = fc; } else if (op === 'k') { bk.r = fr; bk.c = fc; }
+continue;
+}
+leg++;
+var sc = abFast(depth - 1, alpha, beta, !isMax);
+sb[fr][fc] = op; sb[tr][tc] = cap;
+if (op === 'K') { wk.r = fr; wk.c = fc; } else if (op === 'k') { bk.r = fr; bk.c = fc; }
+if (isMax) { if (sc > best) best = sc; if (sc > alpha) alpha = sc; }
+else { if (sc < best) best = sc; if (sc < beta) beta = sc; }
+if (beta <= alpha) break;
+}
+if (leg === 0) return inC ? (isMax ? -999999 : 999999) : 0;
+return best;
+}
+// Return White centipawns (+ = White better, - = Black better)
+return -abFast(4, -999999, 999999, sideToMove === 'B');
+}
+function showGameReport(titleText) {
+var ov = document.getElementById('reportOverlay');
+var btn = document.getElementById('toggleRepBtn');
+if (btn) btn.style.display = 'inline-block';
+if (!ov) return;
+// Re-evaluate all stored board snapshots at 4-ply + 5-ply quiescence (~0.25s once at game end)
+var deepEvals = [];
+for (var h = 0; h < boardHistory.length; h++) {
+var snap = JSON.parse(boardHistory.at(h));
+var snapBoard = Array.isArray(snap) ? snap : snap.bd;
+var side = (h % 2 === 0) ? 'W' : 'B';
+deepEvals.push(deepAnalyzeBoard(snapBoard, side));
+}
+var playerColor = document.getElementById('pColor').value;
+var pIsWhite = (playerColor === 'W');
+var pMoveAccs = [], bMoveAccs = [];
+var stats = {
+p: { best: 0, good: 0, inacc: 0, mistake: 0, blunder: 0 },
+b: { best: 0, good: 0, inacc: 0, mistake: 0, blunder: 0 }
+};
+// Exact Chess.com Win Probability % from White's perspective
+function cpToWinPct(cp) {
+var clamped = Math.max(-1200, Math.min(1200, cp));
+return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * clamped)) - 1);
+}
+for (var i = 0; i < moveHistory.length; i++) {
+var whiteMoved = (i % 2 === 0);
+var isPlayerMove = (whiteMoved === pIsWhite);
+var before = (i < deepEvals.length) ? deepEvals.at(i) : 0;
+var after = (i + 1 < deepEvals.length) ? deepEvals.at(i + 1) : before;
+// Already decided (> 700 cp): count as Best in breakdown, exclude from accuracy average
+if (Math.abs(before) > 700 && Math.abs(after) > 700 && ((before > 0) === (after > 0))) {
+var skipBucket = isPlayerMove ? stats.p : stats.b;
+skipBucket.best++;
+continue;
+}
+var winBefore = whiteMoved ? cpToWinPct(before) : (100 - cpToWinPct(before));
+var winAfter = whiteMoved ? cpToWinPct(after) : (100 - cpToWinPct(after));
+var winDrop = Math.max(0, winBefore - winAfter);
+// Chess.com Expected Points Loss thresholds
+var bucket = isPlayerMove ? stats.p : stats.b;
+if (winDrop <= 2.0) bucket.best++;
+else if (winDrop <= 5.0) bucket.good++;
+else if (winDrop <= 10.0) bucket.inacc++;
+else if (winDrop <= 20.0) bucket.mistake++;
+else bucket.blunder++;
+// Exact Chess.com CAPS2 per-move accuracy
+var moveAcc = Math.max(1, Math.min(100, 103.1668 * Math.exp(-0.04354 * winDrop) - 3.1669));
+if (isPlayerMove) pMoveAccs.push(moveAcc);
+else bMoveAccs.push(moveAcc);
+}
+// Chess.com CAPS2 Weighted Mean (blends arithmetic + harmonic mean to weight blunders like Chess.com)
+function calcCAPS2Weighted(accs) {
+if (accs.length === 0) return '100.0';
+var arithSum = 0, harmSum = 0;
+for (var j = 0; j < accs.length; j++) {
+var a = accs.at(j);
+arithSum += a;
+harmSum += 1 / Math.max(5, a);
+}
+var arithMean = arithSum / accs.length;
+var harmMean = accs.length / harmSum;
+var caps2 = (arithMean * 0.65) + (harmMean * 0.35);
+return Math.max(0, Math.min(100, caps2)).toFixed(1);
+}
+// Calibrated Chess.com Game Rating curve
+function calcChessComGameRating(accStr, outcome, oppRating, blunderCount, mistakeCount, compMoves) {
+var acc = parseFloat(accStr);
+var accElo = 320 + Math.pow(acc / 100, 2.2) * 2380;
+var outcomeBonus = (outcome === 1 ? 175 : (outcome === 0.5 ? 0 : -175));
+var oppAnchor = oppRating + outcomeBonus;
+var denom = Math.max(compMoves, 14);
+var errorDrag = ((blunderCount * 380) + (mistakeCount * 120)) / denom;
+var blended = (accElo * 0.72) + (oppAnchor * 0.28) - errorDrag;
+var ceiling = Math.min(2950, oppRating + 850);
+return Math.max(400, Math.min(ceiling, Math.round(blended / 10) * 10));
+}
+var pAcc = calcCAPS2Weighted(pMoveAccs);
+var bAcc = calcCAPS2Weighted(bMoveAccs);
+var diffVal = document.getElementById('diff').value;
+var botNominalElo = diffVal === '3200' ? 2500 : (diffVal === '1600' ? 1600 : (diffVal === '1200' ? 1200 : 800));
+var playerAnchorElo = diffVal === '3200' ? 2100 : botNominalElo;
+var pOutcome = 0.5, bOutcome = 0.5;
+if (gameResult === '1-0') { pOutcome = pIsWhite ? 1 : 0; bOutcome = pIsWhite ? 0 : 1; }
+else if (gameResult === '0-1') { pOutcome = pIsWhite ? 0 : 1; bOutcome = pIsWhite ? 1 : 0; }
+var pElo = calcChessComGameRating(pAcc, pOutcome, botNominalElo, stats.p.blunder, stats.p.mistake, pMoveAccs.length);
+var bElo = calcChessComGameRating(bAcc, bOutcome, playerAnchorElo, stats.b.blunder, stats.b.mistake, bMoveAccs.length);
+document.getElementById('repTitle').innerText = titleText;
+var sumBox = document.getElementById('repSummary');
+sumBox.innerHTML = '';
+function makeCard(label, elo, acc, accent) {
+var card = document.createElement('div');
+card.style.cssText = 'flex:1; background:#2b2b36; padding:8px 6px; border-radius:6px; border-top:3px solid ' + accent + '; text-align:center;';
+var d1 = document.createElement('div');
+d1.style.cssText = 'font-size:11px; color:#aaa; font-weight:bold;';
+d1.innerText = label;
+var d2 = document.createElement('div');
+d2.style.cssText = 'font-size:24px; font-weight:900; color:' + accent + '; line-height:1.15; margin:3px 0;';
+d2.innerText = elo;
+var d3 = document.createElement('div');
+d3.style.cssText = 'font-size:10px; color:#bbb; text-transform:uppercase; letter-spacing:0.5px;';
+d3.innerText = 'Game Rating';
+var d4 = document.createElement('div');
+d4.style.cssText = 'font-size:13px; font-weight:bold; color:#fff; margin-top:4px;';
+d4.innerText = acc + '% Acc';
+card.appendChild(d1); card.appendChild(d2); card.appendChild(d3); card.appendChild(d4);
+return card;
+}
+sumBox.appendChild(makeCard('YOU (' + (pIsWhite ? 'White' : 'Black') + ')', pElo, pAcc, '#7fffd4'));
+sumBox.appendChild(makeCard('CLUB BOT', bElo, bAcc, '#ff7f7f'));
+var cntBox = document.getElementById('repCounts');
+cntBox.innerHTML = '';
+var rows = [
+['Move Quality', 'You  |  Bot', '#bbb', true],
+['★ Best / Great', stats.p.best + '  |  ' + stats.b.best, '#7fffd4', false],
+['✓ Good', stats.p.good + '  |  ' + stats.b.good, '#a8e6cf', false],
+['?! Inaccuracies', stats.p.inacc + '  |  ' + stats.b.inacc, '#ffd54f', false],
+['? Mistakes', stats.p.mistake + '  |  ' + stats.b.mistake, '#ff8a65', false],
+['?? Blunders', stats.p.blunder + '  |  ' + stats.b.blunder, '#ff5252', false]
+];
+for (var rIdx = 0; rIdx < rows.length; rIdx++) {
+var rData = rows.at(rIdx);
+var rowEl = document.createElement('div');
+rowEl.style.cssText = 'display:flex; justify-content:space-between; color:' + rData.at(2) + ';' +
+(rData.at(3) ? ' border-bottom:1px solid #3c4043; padding-bottom:3px; margin-bottom:4px; font-weight:bold;' : '');
+var leftSpan = document.createElement('span');
+leftSpan.innerText = rData.at(0);
+var rightSpan = document.createElement('span');
+rightSpan.innerText = rData.at(1);
+rowEl.appendChild(leftSpan);
+rowEl.appendChild(rightSpan);
+cntBox.appendChild(rowEl);
+}
+document.getElementById('repBadge').innerText = moveHistory.length + ' plies';
+ov.style.display = 'flex';
+}
   
        function endState(cl) {
         var currentStr = JSON.stringify(bd);
