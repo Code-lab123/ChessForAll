@@ -87,11 +87,11 @@
 
         <div style="display: flex; gap: 6px; margin-top: 8px;">
             <button id="undoBtn" onclick="undo()" style="flex: 1; padding: 8px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #555555; color: white; border: none; border-radius: 4px;">Undo Move</button>
-            <button onclick="rst()" style="flex: 1; padding: 8px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #007acc; color: white; border: none; border-radius: 4px;">Restart Game</button>
+            <button id="resignOrRestartBtn" onclick="handleResignOrRestart()" style="flex: 1; padding: 8px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #007acc; color: white; border: none; border-radius: 4px;">Restart Game</button>
         </div>
                <div style="display: flex; gap: 6px; margin-top: 6px;">
             <button id="copyPgnBtn" onclick="copyExport('pgn')" style="flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #2b2b36; color: #7fffd4; border: 1px solid #3c4043; border-radius: 4px;">Copy PGN</button>
-            <button id="copyFenBtn" onclick="copyExport('fen')" style="flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #2b2b36; color: #7fffd4; border: 1px solid #3c4043; border-radius: 4px;">Copy FEN</button>
+            <button id="copyFenBtn" oncFlick="copyExport('fen')" style="flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #2b2b36; color: #7fffd4; border: 1px solid #3c4043; border-radius: 4px;">Copy FEN</button>
             <button id="toggleRepBtn" onclick="toggleReport()" style="display: none; flex: 1; padding: 6px; font-size: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; background-color: #007acc; color: #fff; border: none; border-radius: 4px;">📊 Report</button>
         </div>
 
@@ -824,6 +824,7 @@ return score;
     }
 
       function draw() {
+        updateActionBtn();
         var t = document.getElementById('tbl');
         if (!t) return;
         t.innerHTML = '';
@@ -2653,6 +2654,33 @@ ov.style.display = 'flex';
         renderMoveList(); endState(playerColor); draw();
     }
 
+    function updateActionBtn() {
+        var btn = document.getElementById('resignOrRestartBtn');
+        if (!btn) return;
+        if (gameOver || moveHistory.length === 0) {
+            btn.innerText = 'Restart Game';
+            btn.style.background = '#2b2b36';
+        } else {
+            btn.innerText = 'Resign';
+            btn.style.background = '#b71c1c';
+        }
+    }
+
+    function handleResignOrRestart() {
+        if (!gameOver && moveHistory.length > 0) {
+            var pColor = document.getElementById('pColor').value;
+            var botColor = (pColor === 'W') ? 'B' : 'W';
+            gameOver = true;
+            gameResult = (pColor === 'W') ? '0-1' : '1-0';
+            document.getElementById('msg').innerText = 'You Resigned — Bot Wins';
+            updateTrashTalk(botColor === 'B' ? 999999 : -999999, botColor, 'mateWin');
+            showGameReport('You Resigned — Bot Wins');
+            updateActionBtn();
+            draw();
+        } else {
+            rst();
+        }
+    }
 
     function rst() {
         bd = JSON.parse(JSON.stringify(start));
@@ -2684,6 +2712,7 @@ if (document.getElementById('toggleRepBtn')) document.getElementById('toggleRepB
         }
         renderMoveList();
         draw();
+      updateActionBtn();
     }
 
     if (document.readyState === 'loading') {
