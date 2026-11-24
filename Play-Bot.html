@@ -1193,7 +1193,7 @@ return score;
 
 
 
-                                               var zobristHi = new Int32Array(781);
+                                                  var zobristHi = new Int32Array(781);
     var zobristLo = new Int32Array(781);
     (function initZobrist() {
         var seed = 1070372;
@@ -1215,7 +1215,7 @@ return score;
 
         var maxDepth = is3200 ? 14 : (diffSetting === "1600" ? 3 : 2);
         var maxQDepth = is3200 ? 8 : (diffSetting === "1600" ? 2 : (diffSetting === "1200" ? 2 : 1));
-        var timeLimitMs = is3200 ? 2200 : (diffSetting === "1600" ? 90 : (diffSetting === "1200" ? 60 : 40));
+        var timeLimitMs = is3200 ? 2400 : (diffSetting === "1600" ? 90 : (diffSetting === "1200" ? 60 : 40));
         var startTime = Date.now();
         var timeUp = false;
 
@@ -1512,6 +1512,7 @@ var s = evalBoard(b);
 if (!is3200) return s;
 var wKingShield = 0, bKingShield = 0;
 var wHasHeavy = false, bHasHeavy = false;
+var minorMajorCount = 0;
 var wRookCols = [], bRookCols = [];
 var wPawns = new Int8Array(8), bPawns = new Int8Array(8);
 var wMinPawn = new Int8Array(8).fill(8);
@@ -1522,16 +1523,20 @@ for (var c = 0; c < 8; c++) {
 var p = row[c];
 if (p === 'R' || p === 'Q') {
 wHasHeavy = true;
+minorMajorCount += (p === 'Q' ? 4 : 2);
 if (p === 'R') {
 wRookCols.push(c);
 if (r === 1) s -= 35;
 }
 } else if (p === 'r' || p === 'q') {
 bHasHeavy = true;
+minorMajorCount += (p === 'q' ? 4 : 2);
 if (p === 'r') {
 bRookCols.push(c);
 if (r === 6) s += 35;
 }
+} else if (p === 'N' || p === 'B' || p === 'n' || p === 'b') {
+minorMajorCount += 1;
 } else if (p === 'P') {
 wPawns[c]++;
 if (r < wMinPawn[c]) wMinPawn[c] = r;
@@ -1540,6 +1545,13 @@ bPawns[c]++;
 if (r > bMaxPawn[c]) bMaxPawn[c] = r;
 }
 }
+}
+// Active endgame king centralization (when few pieces remain)
+if (minorMajorCount <= 4) {
+var wCenterDist = Math.abs(3.5 - wKing.r) + Math.abs(3.5 - wKing.c);
+var bCenterDist = Math.abs(3.5 - bKing.r) + Math.abs(3.5 - bKing.c);
+var endWeight = (5 - minorMajorCount) * 8;
+s += Math.round((wCenterDist - bCenterDist) * endWeight);
 }
 // Passed-pawn & connected-passer bonus
 var wPassedCols = new Int8Array(8);
@@ -1642,7 +1654,7 @@ return s;
 }
 var nodes = 0;
 function quiesce(b, alpha, beta, isMax, qDepth) {
-if ((++nodes & 2047) === 0 && Date.now() - startTime > timeLimitMs) {
+if ((++nodes & 511) === 0 && Date.now() - startTime > timeLimitMs) {
 timeUp = true;
 return 0;
 }
@@ -1666,7 +1678,6 @@ if (standPat < beta) beta = standPat;
 } else if (qDepth <= -3) {
 return evalEnhanced(b);
 }
-// On first quiescence ply (qDepth === maxQDepth), also inspect quiet checking moves
 var searchChecks = (is3200 && !inCheck && qDepth === maxQDepth);
 var gen = genMoves(activeColor, b, !inCheck && !searchChecks, 127, 0, false);
 var legalCount = 0;
@@ -1703,7 +1714,7 @@ return isMax ? -999999 : 999999;
 return isMax ? alpha : beta;
 }
 function minimax(b, depth, alpha, beta, isMax, ply, allowNull) {
-if ((++nodes & 2047) === 0 && Date.now() - startTime > timeLimitMs) {
+if ((++nodes & 511) === 0 && Date.now() - startTime > timeLimitMs) {
 timeUp = true;
 return 0;
 }
@@ -1793,7 +1804,8 @@ break;
 if (legalCount === 0) {
 return inCheck ? -999999 - depth : 0;
 }
-if (ttSize < 250000 && !timeUp) {
+// Never cache exact 0 draw scores (prevents repetition-path TT poisoning)
+if (ttSize < 250000 && !timeUp && maxVal !== 0) {
 var flag = maxVal <= alphaOrig ? 2 : (maxVal >= betaOrig ? 1 : 0);
 if (!ttEntry) ttSize++;
 ttTable[key] = { depth: depth, score: maxVal, flag: flag, best: bestMoveCode };
@@ -1842,7 +1854,7 @@ break;
 if (legalCount === 0) {
 return inCheck ? 999999 + depth : 0;
 }
-if (ttSize < 250000 && !timeUp) {
+if (ttSize < 250000 && !timeUp && minVal !== 0) {
 var flag = minVal <= alphaOrig ? 2 : (minVal >= betaOrig ? 1 : 0);
 if (!ttEntry) ttSize++;
 ttTable[key] = { depth: depth, score: minVal, flag: flag, best: bestMoveCode };
@@ -2079,7 +2091,6 @@ evalBox.innerText += ' (d' + completedDepth + ' | ' + Math.round(nodes / 1000) +
 }
 draw();
 }
-  
   
   
   
