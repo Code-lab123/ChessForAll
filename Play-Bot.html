@@ -1651,57 +1651,64 @@ s -= (bDistCenter * 14) + ((14 - kingsDist) * 6);
 return s;
 }
 var nodes = 0;
-function quiesce(b, alpha, beta, isMax, qDepth) {
-if ((++nodes & 511) === 0 && Date.now() - startTime > timeLimitMs) {
-timeUp = true;
-return 0;
-}
-var activeColor = isMax ? 'B' : 'W';
-var enemyColor = isMax ? 'W' : 'B';
-var myKing = isMax ? bKing : wKing;
-var inCheck = isSquareAttacked(myKing.r, myKing.c, enemyColor, b);
-if (!inCheck) {
-var standPat = evalEnhanced(b);
-if (qDepth <= 0) return standPat;
-if (isMax) {
-if (standPat >= beta) return beta;
-if (standPat + 1300 < alpha) return alpha;
-if (standPat > alpha) alpha = standPat;
-} else {
-if (standPat <= alpha) return alpha;
-if (standPat - 1300 > beta) return beta;
-if (standPat < beta) beta = standPat;
-}
-} else if (qDepth <= -3) {
-return evalEnhanced(b);
-}
-var gen = genMoves(activeColor, b, !inCheck, 127, 0, false);
-var legalCount = 0;
-for (var i = 0; i < gen.moves.length; i++) {
-var code = pickNextMove(gen, i);
+        function quiesce(b, alpha, beta, isMax, qDepth) {
+            if ((++nodes & 511) === 0 && Date.now() - startTime > timeLimitMs) {
+                timeUp = true;
+                return 0;
+            }
+            var activeColor = isMax ? 'B' : 'W';
+            var enemyColor = isMax ? 'W' : 'B';
+            var myKing = isMax ? bKing : wKing;
+            var inCheck = isSquareAttacked(myKing.r, myKing.c, enemyColor, b);
+            var bestScore = isMax ? -999999 : 999999;
 
-var uData = makeSimCode(b, code);
-if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
-unmakeSimCode(b, code, uData);
-continue;
-}
-legalCount++;
-var score = quiesce(b, alpha, beta, !isMax, qDepth - 1);
-unmakeSimCode(b, code, uData);
-if (timeUp) return 0;
-if (isMax) {
-if (score >= beta) return beta;
-if (score > alpha) alpha = score;
-} else {
-if (score <= alpha) return alpha;
-if (score < beta) beta = score;
-}
-}
-if (inCheck && legalCount === 0) {
-return isMax ? -999999 : 999999;
-}
-return isMax ? alpha : beta;
-}
+            if (!inCheck) {
+                var standPat = evalEnhanced(b);
+                if (qDepth <= 0) return standPat;
+                bestScore = standPat;
+                if (isMax) {
+                    if (standPat >= beta) return standPat;
+                    if (standPat + 1300 < alpha) return standPat;
+                    if (standPat > alpha) alpha = standPat;
+                } else {
+                    if (standPat <= alpha) return standPat;
+                    if (standPat - 1300 > beta) return standPat;
+                    if (standPat < beta) beta = standPat;
+                }
+            } else if (qDepth <= -3) {
+                return evalEnhanced(b);
+            }
+
+            var gen = genMoves(activeColor, b, !inCheck, 127, 0, false);
+            var legalCount = 0;
+            for (var i = 0; i < gen.moves.length; i++) {
+                var code = pickNextMove(gen, i);
+
+                var uData = makeSimCode(b, code);
+                if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
+                    unmakeSimCode(b, code, uData);
+                    continue;
+                }
+                legalCount++;
+                var score = quiesce(b, alpha, beta, !isMax, qDepth - 1);
+                unmakeSimCode(b, code, uData);
+                if (timeUp) return 0;
+                if (isMax) {
+                    if (score > bestScore) bestScore = score;
+                    if (score >= beta) return bestScore;
+                    if (score > alpha) alpha = score;
+                } else {
+                    if (score < bestScore) bestScore = score;
+                    if (score <= alpha) return bestScore;
+                    if (score < beta) beta = score;
+                }
+            }
+            if (inCheck && legalCount === 0) {
+                return isMax ? -999999 : 999999;
+            }
+            return bestScore;
+        }
+
 function minimax(b, depth, alpha, beta, isMax, ply, allowNull) {
 if ((++nodes & 511) === 0 && Date.now() - startTime > timeLimitMs) {
 timeUp = true;
