@@ -1193,7 +1193,7 @@ return score;
 
 
 
-                                            var zobristHi = new Int32Array(781);
+                                               var zobristHi = new Int32Array(781);
     var zobristLo = new Int32Array(781);
     (function initZobrist() {
         var seed = 1070372;
@@ -1208,7 +1208,6 @@ return score;
             zobristLo.set([rand32()], i);
         }
     })();
-
 
     function bot() {
         var diffSetting = document.getElementById('diff').value;
@@ -1242,7 +1241,6 @@ return score;
         function computeHash(b, isMax) {
             var hi = isMax ? zobristHi.at(768) : 0;
             var lo = isMax ? zobristLo.at(768) : 0;
-
             for (var r = 0; r < 8; r++) {
                 var row = b[r];
                 var base = r << 3;
@@ -1265,12 +1263,12 @@ return score;
             var hKey = computeHash(hBoard, h % 2 === 1);
             gameRepHistory[hKey] = (gameRepHistory[hKey] || 0) + 1;
         }
-        var searchPathKeys = new Float64Array(40);
+        var searchPathKeys = new Float64Array(128);
 
         var ttTable = Object.create(null);
         var ttSize = 0;
-        var killers1 = new Int32Array(40);
-        var killers2 = new Int32Array(40);
+        var killers1 = new Int32Array(128);
+        var killers2 = new Int32Array(128);
 
         function isLosingCapture(b, tr, tc, attVal, targetVal, byWhite) {
             if (targetVal >= attVal) return false;
@@ -1293,8 +1291,9 @@ return score;
             var colorMap = isW ? isWhiteMap : isBlackMap;
             var enemyMap = isW ? isBlackMap : isWhiteMap;
             var backRank = isW ? 7 : 0;
-            var k1 = killers1[ply];
-            var k2 = killers2[ply];
+            var safePly = ply < 127 ? ply : 127;
+            var k1 = killers1[safePly];
+            var k2 = killers2[safePly];
 
             function pushMove(fr, fc, tr, tc, isEP, isCastle) {
                 var target = b[tr][tc];
@@ -1327,7 +1326,7 @@ return score;
                 } else if (piece === 'R' || piece === 'r') {
                     s = 4000;
                 } else if (fr === backRank && (piece === 'N' || piece === 'n' || piece === 'B' || piece === 'b')) {
-                    s = 2800;
+                    s = 3200;
                 } else {
                     var centerBonus = (3.5 - Math.abs(3.5 - tc)) * 12;
                     s = (isW ? (7 - tr) : tr) * 16 + centerBonus;
@@ -1407,7 +1406,7 @@ return score;
                                 if (sq === '' || enemyMap[sq]) pushMove(r, c, nr, nc, false, false);
                             }
                         }
-                        if (rootMode && !capturesOnly) {
+if (rootMode && !capturesOnly) {
 var opp = isW ? 'B' : 'W';
 var rRow = b.at(backRank);
 if (r === backRank && c === 4 && !hasMoved[cl + '_K'] && !isSquareAttacked(backRank, 4, opp, b)) {
@@ -1542,7 +1541,7 @@ if (r > bMaxPawn[c]) bMaxPawn[c] = r;
 }
 }
 }
-// Strong passed-pawn & connected-passer evaluation (prevents allowing steamrollers)
+// Passed-pawn & connected-passer bonus
 var wPassedCols = new Int8Array(8);
 var bPassedCols = new Int8Array(8);
 for (var c = 0; c < 8; c++) {
@@ -1553,7 +1552,7 @@ var wBlocked = (bMaxPawn[c] < wr) ||
 (c < 7 && bMaxPawn[c + 1] < wr);
 if (!wBlocked) {
 wPassedCols[c] = 1;
-var adv = 7 - wr; // 1 to 6
+var adv = 7 - wr;
 var bonus = adv * adv * 5;
 if (adv >= 4) bonus += 45;
 if (adv >= 5) bonus += 85;
@@ -1650,6 +1649,7 @@ return 0;
 var activeColor = isMax ? 'B' : 'W';
 var enemyColor = isMax ? 'W' : 'B';
 var myKing = isMax ? bKing : wKing;
+var oppKing = isMax ? wKing : bKing;
 var inCheck = isSquareAttacked(myKing.r, myKing.c, enemyColor, b);
 if (!inCheck) {
 var standPat = evalEnhanced(b);
@@ -1666,13 +1666,22 @@ if (standPat < beta) beta = standPat;
 } else if (qDepth <= -3) {
 return evalEnhanced(b);
 }
-var gen = genMoves(activeColor, b, !inCheck, 39, 0, false);
+// On first quiescence ply (qDepth === maxQDepth), also inspect quiet checking moves
+var searchChecks = (is3200 && !inCheck && qDepth === maxQDepth);
+var gen = genMoves(activeColor, b, !inCheck && !searchChecks, 127, 0, false);
 var legalCount = 0;
 for (var i = 0; i < gen.moves.length; i++) {
 var code = pickNextMove(gen, i);
-if (!inCheck && gen.scores[i] < 0) break;
+var tr = (code >> 3) & 7, tc = code & 7;
+var isCap = (b[tr][tc] !== '' || (code & 4096) !== 0);
+if (!inCheck && !isCap && !searchChecks) break;
+if (!inCheck && isCap && gen.scores[i] < 0) continue;
 var uData = makeSimCode(b, code);
 if (isSquareAttacked(myKing.r, myKing.c, enemyColor, b)) {
+unmakeSimCode(b, code, uData);
+continue;
+}
+if (searchChecks && !isCap && !isSquareAttacked(oppKing.r, oppKing.c, activeColor, b)) {
 unmakeSimCode(b, code, uData);
 continue;
 }
@@ -1699,19 +1708,20 @@ timeUp = true;
 return 0;
 }
 var key = computeHash(b, isMax);
+var safePly = ply < 127 ? ply : 127;
 if (ply > 0 && allowNull) {
 if (gameRepHistory[key] >= 2) return 0;
-for (var sp = 0; sp < ply; sp++) {
+for (var sp = 0; sp < safePly; sp++) {
 if (searchPathKeys[sp] === key) return 0;
 }
 }
-searchPathKeys[ply] = key;
+searchPathKeys[safePly] = key;
 var activeColor = isMax ? 'B' : 'W';
 var enemyColor = isMax ? 'W' : 'B';
 var myKing = isMax ? bKing : wKing;
 var oppKing = isMax ? wKing : bKing;
 var inCheck = isSquareAttacked(myKing.r, myKing.c, enemyColor, b);
-if (is3200 && inCheck && ply < 28) {
+if (is3200 && inCheck && ply < 24) {
 depth += 1;
 }
 var alphaOrig = alpha;
@@ -1737,7 +1747,7 @@ if (timeUp) return 0;
 if (isMax && nullScore >= beta) return beta;
 if (!isMax && nullScore <= alpha) return alpha;
 }
-var gen = genMoves(activeColor, b, false, ply, ttBestCode, false);
+var gen = genMoves(activeColor, b, false, safePly, ttBestCode, false);
 var legalCount = 0;
 var bestMoveCode = 0;
 if (isMax) {
@@ -1773,9 +1783,9 @@ bestMoveCode = code;
 }
 if (score > alpha) alpha = score;
 if (beta <= alpha) {
-if (isQuiet && ply < 40 && killers1[ply] !== code) {
-killers2[ply] = killers1[ply];
-killers1[ply] = code;
+if (isQuiet && killers1[safePly] !== code) {
+killers2[safePly] = killers1[safePly];
+killers1[safePly] = code;
 }
 break;
 }
@@ -1822,9 +1832,9 @@ bestMoveCode = code;
 }
 if (score < beta) beta = score;
 if (beta <= alpha) {
-if (isQuiet && ply < 40 && killers1[ply] !== code) {
-killers2[ply] = killers1[ply];
-killers1[ply] = code;
+if (isQuiet && killers1[safePly] !== code) {
+killers2[safePly] = killers1[safePly];
+killers1[safePly] = code;
 }
 break;
 }
@@ -1883,6 +1893,15 @@ bookMoves = [
 encodeMove(0, 1, 2, 2, false, false),
 encodeMove(0, 6, 2, 5, false, false)
 ];
+} else if (moveHistory.length === 3 && bd.at(4).at(4) === 'P' && bd.at(2).at(2) === 'p' && bd.at(4).at(3) === 'P') {
+bookMoves = [
+encodeMove(1, 3, 3, 3, false, false)
+];
+} else if (moveHistory.length === 5 && bd.at(3).at(4) === 'P' && bd.at(3).at(3) === 'p' && bd.at(2).at(2) === 'p') {
+bookMoves = [
+encodeMove(0, 2, 4, 6, false, false),
+encodeMove(1, 2, 3, 2, false, false)
+];
 } else if (moveHistory.length === 3 && bd.at(4).at(3) === 'P' && bd.at(4).at(5) === 'B') {
 bookMoves = [
 encodeMove(1, 3, 3, 3, false, false),
@@ -1895,16 +1914,13 @@ for (var bIdx = 0; bIdx < bookMoves.length; bIdx++) {
 if (topCodes.indexOf(bookMoves[bIdx]) !== -1) validBookCodes.push(bookMoves[bIdx]);
 }
 var chosenBookCode = validBookCodes.length > 0 ? validBookCodes[Math.floor(Math.random() * validBookCodes.length)] : 0;
-        var bestEvaluatedMoves = [];
-        var completedDepth = 0;
-
-        if (is3200 && chosenBookCode !== 0 && moveHistory.length <= 3) {
-            bestEvaluatedMoves = [{ code: chosenBookCode, score: evalEnhanced(simBoard) }];
-            completedDepth = 1;
-        } else {
-
+var bestEvaluatedMoves = [];
+var completedDepth = 0;
+if (is3200 && chosenBookCode !== 0 && moveHistory.length <= 5) {
+bestEvaluatedMoves = [{ code: chosenBookCode, score: evalEnhanced(simBoard) }];
+completedDepth = 1;
+} else {
 searchPathKeys.set([computeHash(simBoard, isBotBlack)], 0);
-
 var lastIterScore = evalEnhanced(simBoard);
 for (var d = 1; d <= maxDepth; d++) {
 var currentDepthMoves = [];
