@@ -2300,6 +2300,9 @@ document.getElementById('msg').innerText = "Your Turn (White)";
             var blunderDrag = (blunderCount / Math.max(moveCount, 20)) * 380;
             var blended = (accElo * 0.72) + (oppAnchor * 0.28) - blunderDrag;
             return Math.max(400, Math.min(2950, Math.round(blended / 10) * 10));
+          var ceiling = Math.min(2950, oppRating + 850);
+return Math.max(400, Math.min(ceiling, Math.round(blended / 10) * 10));
+
         }
 
 
