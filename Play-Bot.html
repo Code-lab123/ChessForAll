@@ -2291,22 +2291,24 @@ document.getElementById('msg').innerText = "Your Turn (White)";
         }
 
         // Chess.com-style Game Rating Estimator
+               // Inside calcChessComGameRating:
         function calcChessComGameRating(accStr, outcome, oppRating, blunderCount, moveCount) {
             var acc = parseFloat(accStr);
-            // Maps CAPS2 accuracy to performance Elo (50%->600, 70%->1150, 80%->1550, 90%->2050, 97%->2500+)
-            var accElo = 300 + Math.pow(acc / 100, 2.35) * 2350;
-            var outcomeBonus = (outcome === 1 ? 160 : (outcome === 0.5 ? 0 : -160));
+            var accElo = 350 + Math.pow(acc / 100, 1.95) * 2400;
+            var outcomeBonus = (outcome === 1 ? 180 : (outcome === 0.5 ? 0 : -180));
             var oppAnchor = oppRating + outcomeBonus;
             var blunderDrag = (blunderCount / Math.max(moveCount, 20)) * 380;
-            var blended = (accElo * 0.68) + (oppAnchor * 0.32) - blunderDrag;
-            return Math.max(400, Math.min(2900, Math.round(blended / 10) * 10));
+            var blended = (accElo * 0.72) + (oppAnchor * 0.28) - blunderDrag;
+            return Math.max(400, Math.min(2950, Math.round(blended / 10) * 10));
         }
+
 
         var pAcc = calcCAPS2Accuracy(pWinLosses);
         var bAcc = calcCAPS2Accuracy(bWinLosses);
         var diffVal = document.getElementById('diff').value;
-        var botNominalElo = diffVal === '3200' ? 2450 : (diffVal === '1600' ? 1600 : (diffVal === '1200' ? 1200 : 800));
-        var playerAnchorElo = diffVal === '3200' ? 1850 : botNominalElo;
+                var botNominalElo = diffVal === '3200' ? 2500 : (diffVal === '1600' ? 1600 : (diffVal === '1200' ? 1200 : 800));
+        var playerAnchorElo = diffVal === '3200' ? 2150 : botNominalElo;
+
 
         var pOutcome = 0.5, bOutcome = 0.5;
         if (gameResult === '1-0') { pOutcome = pIsWhite ? 1 : 0; bOutcome = pIsWhite ? 0 : 1; }
