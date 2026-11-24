@@ -1239,8 +1239,9 @@ return score;
 
         var pieceHashMap = { 'P':0, 'N':1, 'B':2, 'R':3, 'Q':4, 'K':5, 'p':6, 'n':7, 'b':8, 'r':9, 'q':10, 'k':11 };
         function computeHash(b, isMax) {
-            var hi = isMax ? zobristHi[768] : 0;
-            var lo = isMax ? zobristLo[768] : 0;
+            var hi = isMax ? zobristHi.at(768) : 0;
+var lo = isMax ? zobristLo.at(768) : 0;
+
             for (var r = 0; r < 8; r++) {
                 var row = b[r];
                 var base = r << 3;
